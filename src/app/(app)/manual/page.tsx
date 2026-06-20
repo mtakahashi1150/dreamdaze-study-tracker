@@ -28,9 +28,9 @@ export default function ManualPage() {
   if (!isChild) {
     return (
       <main className="p-6 pt-8">
-        <h1 className="text-xl font-bold">手入力</h1>
+        <h1 className="text-xl font-bold">記録の追加</h1>
         <p className="mt-4 text-sm text-zinc-500">
-          手入力での記録追加は、お子さんのアカウントから行ってください。
+          記録の追加は、お子さんのアカウントから行ってください。
         </p>
       </main>
     );
@@ -71,9 +71,9 @@ export default function ManualPage() {
   return (
     <main className="space-y-5 p-4 pt-6 pb-8">
       <header>
-        <h1 className="text-xl font-bold">手入力</h1>
+        <h1 className="text-xl font-bold">記録の追加</h1>
         <p className="text-sm text-zinc-500">
-          押し忘れた日の記録を後から追加。日時は手動で編集できます。
+          押し忘れた日の記録を後から追加します。保存すると「手入力」印が付きます。
         </p>
       </header>
 

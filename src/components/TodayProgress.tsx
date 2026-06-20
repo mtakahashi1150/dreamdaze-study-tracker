@@ -1,13 +1,14 @@
 "use client";
 
-import { format } from "date-fns";
 import type { DayEvaluation, StudySession } from "@/types/database";
-import { formatMinutes, sessionMinutes } from "@/lib/rules";
+import { EditableSessionList } from "@/components/EditableSessionList";
+import { formatMinutes } from "@/lib/rules";
 
 type Props = {
   evaluation: DayEvaluation;
   isChild: boolean;
   todaySessions?: StudySession[];
+  onUpdated?: () => void;
 };
 
 function ProgressRow({
@@ -40,7 +41,12 @@ function ProgressRow({
   );
 }
 
-export function TodayProgress({ evaluation, isChild, todaySessions = [] }: Props) {
+export function TodayProgress({
+  evaluation,
+  isChild,
+  todaySessions = [],
+  onUpdated,
+}: Props) {
   const {
     status,
     label,
@@ -99,30 +105,26 @@ export function TodayProgress({ evaluation, isChild, todaySessions = [] }: Props
         <div className="mt-4 border-t border-zinc-100 pt-3 dark:border-zinc-800">
           <p className="mb-2 text-xs font-semibold text-zinc-500">
             本日の記録（{todaySessions.length}回・合算）
+            {isChild && (
+              <span className="ml-1 font-normal text-zinc-400">
+                · 各行の「編集」で修正できます
+              </span>
+            )}
           </p>
-          <ul className="space-y-1.5">
-            {todaySessions.map((s) => (
-              <li
-                key={s.id}
-                className="flex items-start justify-between gap-2 text-sm text-zinc-600 dark:text-zinc-300"
-              >
-                <span className="min-w-0 truncate">
-                  {format(new Date(s.started_at), "HH:mm")}–
-                  {s.ended_at ? format(new Date(s.ended_at), "HH:mm") : "—"}
-                  {s.kind === "juku" ? " · 塾" : " · 自習"}
-                  {s.transcript_start ? ` · ${s.transcript_start}` : ""}
-                </span>
-                <span className="shrink-0 font-medium tabular-nums">
-                  {formatMinutes(sessionMinutes(s))}
-                </span>
-              </li>
-            ))}
-          </ul>
+          <EditableSessionList
+            sessions={todaySessions}
+            isChild={isChild}
+            onUpdated={onUpdated}
+            compact
+            emptyMessage=""
+          />
         </div>
       )}
 
       {!isChild && (
-        <p className="mt-3 text-xs text-zinc-400">親モード：閲覧のみ</p>
+        <p className="mt-3 text-xs text-zinc-400">
+          親モード：閲覧のみ。「手入力」印は手で追加・修正した記録です。
+        </p>
       )}
     </section>
   );

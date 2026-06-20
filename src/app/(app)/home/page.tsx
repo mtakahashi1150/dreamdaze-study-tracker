@@ -60,6 +60,7 @@ export default function HomePage() {
         evaluation={evaluation}
         isChild={isChild}
         todaySessions={todaySessions}
+        onUpdated={refresh}
       />
 
       {isChild && profile && (

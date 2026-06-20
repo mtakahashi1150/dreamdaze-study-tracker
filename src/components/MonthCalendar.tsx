@@ -1,16 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { format, parseISO } from "date-fns";
+import { format } from "date-fns";
 import { ja } from "date-fns/locale";
 import type { DayEvaluation, StudySession, WeeklySchedule } from "@/types/database";
-import {
-  evaluateDay,
-  formatMinutes,
-  monthGrid,
-  sessionMinutes,
-  statusColor,
-} from "@/lib/rules";
+import { EditableSessionList } from "@/components/EditableSessionList";
+import { evaluateDay, monthGrid, statusColor } from "@/lib/rules";
 
 type Props = {
   sessions: StudySession[];
@@ -111,44 +106,21 @@ export function MonthCalendar({ sessions, weeklySchedule, onDayClick }: Props) {
 export function DaySessionList({
   dateKey,
   sessions,
+  isChild,
+  onUpdated,
 }: {
   dateKey: string;
   sessions: StudySession[];
+  isChild: boolean;
+  onUpdated?: () => void;
 }) {
-  const daySessions = sessions.filter(
-    (s) => format(parseISO(s.started_at), "yyyy-MM-dd") === dateKey,
-  );
-
-  if (daySessions.length === 0) {
-    return <p className="text-sm text-zinc-500">この日の記録はありません。</p>;
-  }
-
   return (
-    <ul className="space-y-2">
-      {daySessions.map((s) => (
-        <li
-          key={s.id}
-          className="rounded-xl border border-zinc-200 p-3 text-sm dark:border-zinc-700"
-        >
-          <p className="font-medium">
-            {format(parseISO(s.started_at), "HH:mm")}
-            {s.ended_at && ` — ${format(parseISO(s.ended_at), "HH:mm")}`}
-            {" · "}
-            {formatMinutes(sessionMinutes(s))}
-            {s.kind === "juku" ? (
-              <span className="ml-2 rounded bg-violet-100 px-1.5 text-violet-700">塾</span>
-            ) : (
-              <span className="ml-2 rounded bg-zinc-100 px-1.5 text-zinc-600">自習</span>
-            )}
-          </p>
-          {s.transcript_start && (
-            <p className="mt-1 text-zinc-600 dark:text-zinc-300">開始：{s.transcript_start}</p>
-          )}
-          {s.transcript_end && (
-            <p className="text-zinc-600 dark:text-zinc-300">終了：{s.transcript_end}</p>
-          )}
-        </li>
-      ))}
-    </ul>
+    <EditableSessionList
+      sessions={sessions}
+      dateKey={dateKey}
+      isChild={isChild}
+      onUpdated={onUpdated}
+      emptyMessage="この日の記録はありません。"
+    />
   );
 }
