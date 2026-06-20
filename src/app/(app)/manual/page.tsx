@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { VoiceInput } from "@/components/VoiceInput";
+import { SESSION_KIND_OPTIONS } from "@/components/SessionBadges";
 import { useFamilyData } from "@/hooks/useFamilyData";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -9,6 +10,7 @@ import {
   formatDateTimeLocal,
   parseDateTimeLocal,
 } from "@/lib/rules";
+import type { SessionKind } from "@/types/database";
 
 export default function ManualPage() {
   const { profile, isChild, refresh } = useFamilyData();
@@ -20,7 +22,7 @@ export default function ManualPage() {
   );
   const [transcriptStart, setTranscriptStart] = useState("");
   const [transcriptEnd, setTranscriptEnd] = useState("");
-  const [kind, setKind] = useState<"study" | "juku">("study");
+  const [kind, setKind] = useState<SessionKind>("study_home");
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -43,10 +45,8 @@ export default function ManualPage() {
     setError(null);
     setMessage(null);
 
-    const resolvedKind =
-      detectKind(transcriptStart) === "juku" || detectKind(transcriptEnd) === "juku"
-        ? "juku"
-        : kind;
+    const detected = detectKind(transcriptStart + transcriptEnd);
+    const resolvedKind = detected !== "study_home" ? detected : kind;
 
     const { error: err } = await supabase.from("study_sessions").insert({
       member_id: profile.id,
@@ -78,29 +78,21 @@ export default function ManualPage() {
       </header>
 
       <form onSubmit={handleSave} className="space-y-4">
-        <div className="grid grid-cols-2 gap-2">
-          <button
-            type="button"
-            onClick={() => setKind("study")}
-            className={`rounded-xl py-2 text-sm font-medium ${
-              kind === "study"
-                ? "bg-violet-600 text-white"
-                : "border border-zinc-300 dark:border-zinc-600"
-            }`}
-          >
-            自習
-          </button>
-          <button
-            type="button"
-            onClick={() => setKind("juku")}
-            className={`rounded-xl py-2 text-sm font-medium ${
-              kind === "juku"
-                ? "bg-violet-600 text-white"
-                : "border border-zinc-300 dark:border-zinc-600"
-            }`}
-          >
-            塾
-          </button>
+        <div className="grid grid-cols-3 gap-2">
+          {SESSION_KIND_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => setKind(opt.value)}
+              className={`rounded-xl py-2 text-xs font-medium ${
+                kind === opt.value
+                  ? "bg-violet-600 text-white"
+                  : "border border-zinc-300 dark:border-zinc-600"
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
         </div>
 
         <label className="block">

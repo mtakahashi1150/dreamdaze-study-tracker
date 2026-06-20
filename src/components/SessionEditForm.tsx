@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { SESSION_KIND_OPTIONS } from "@/components/SessionBadges";
 import {
   detectKind,
   formatDateTimeLocal,
+  normalizeKind,
   parseDateTimeLocal,
 } from "@/lib/rules";
 import type { SessionKind, StudySession } from "@/types/database";
@@ -23,7 +25,7 @@ export function SessionEditForm({ session, onSaved, onCancel }: Props) {
       ? formatDateTimeLocal(session.ended_at)
       : formatDateTimeLocal(session.started_at),
   );
-  const [kind, setKind] = useState<SessionKind>(session.kind);
+  const [kind, setKind] = useState<SessionKind>(normalizeKind(session.kind));
   const [transcriptStart, setTranscriptStart] = useState(session.transcript_start ?? "");
   const [transcriptEnd, setTranscriptEnd] = useState(session.transcript_end ?? "");
   const [loading, setLoading] = useState(false);
@@ -34,10 +36,8 @@ export function SessionEditForm({ session, onSaved, onCancel }: Props) {
     setLoading(true);
     setError(null);
 
-    const resolvedKind =
-      detectKind(transcriptStart) === "juku" || detectKind(transcriptEnd) === "juku"
-        ? "juku"
-        : kind;
+    const detected = detectKind(transcriptStart + transcriptEnd);
+    const resolvedKind = detected !== "study_home" ? detected : kind;
 
     const { data, error: err } = await supabase
       .from("study_sessions")
@@ -87,29 +87,21 @@ export function SessionEditForm({ session, onSaved, onCancel }: Props) {
         記録を編集（保存すると「手入力」印が付きます）
       </p>
 
-      <div className="grid grid-cols-2 gap-2">
-        <button
-          type="button"
-          onClick={() => setKind("study")}
-          className={`rounded-lg py-1.5 text-xs font-medium ${
-            kind === "study"
-              ? "bg-violet-600 text-white"
-              : "border border-zinc-300 bg-white dark:border-zinc-600 dark:bg-zinc-900"
-          }`}
-        >
-          自習
-        </button>
-        <button
-          type="button"
-          onClick={() => setKind("juku")}
-          className={`rounded-lg py-1.5 text-xs font-medium ${
-            kind === "juku"
-              ? "bg-violet-600 text-white"
-              : "border border-zinc-300 bg-white dark:border-zinc-600 dark:bg-zinc-900"
-          }`}
-        >
-          塾
-        </button>
+      <div className="grid grid-cols-3 gap-2">
+        {SESSION_KIND_OPTIONS.map((opt) => (
+          <button
+            key={opt.value}
+            type="button"
+            onClick={() => setKind(opt.value)}
+            className={`rounded-lg py-1.5 text-[10px] font-medium ${
+              kind === opt.value
+                ? "bg-violet-600 text-white"
+                : "border border-zinc-300 bg-white dark:border-zinc-600 dark:bg-zinc-900"
+            }`}
+          >
+            {opt.label}
+          </button>
+        ))}
       </div>
 
       <label className="block text-xs">

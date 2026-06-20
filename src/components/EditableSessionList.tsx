@@ -16,6 +16,29 @@ type Props = {
   emptyMessage?: string;
 };
 
+function SessionComments({
+  session,
+  compact,
+}: {
+  session: StudySession;
+  compact: boolean;
+}) {
+  const hasStart = Boolean(session.transcript_start?.trim());
+  const hasEnd = Boolean(session.transcript_end?.trim());
+  if (!hasStart && !hasEnd) return null;
+
+  const textClass = compact
+    ? "text-xs text-zinc-500 dark:text-zinc-400"
+    : "text-zinc-600 dark:text-zinc-300";
+
+  return (
+    <div className={compact ? "mt-0.5 space-y-0.5" : "mt-1 space-y-0.5"}>
+      {hasStart && <p className={textClass}>開始：{session.transcript_start}</p>}
+      {hasEnd && <p className={textClass}>終了：{session.transcript_end}</p>}
+    </div>
+  );
+}
+
 export function EditableSessionList({
   sessions,
   dateKey,
@@ -65,17 +88,7 @@ export function EditableSessionList({
                   <SessionKindBadge kind={s.kind} />
                   {s.manual_edited && <ManualEditedBadge />}
                 </p>
-                {!compact && s.transcript_start && (
-                  <p className="mt-1 text-zinc-600 dark:text-zinc-300">
-                    開始：{s.transcript_start}
-                  </p>
-                )}
-                {!compact && s.transcript_end && (
-                  <p className="text-zinc-600 dark:text-zinc-300">終了：{s.transcript_end}</p>
-                )}
-                {compact && s.transcript_start && (
-                  <p className="truncate text-xs text-zinc-500">{s.transcript_start}</p>
-                )}
+                <SessionComments session={s} compact={compact} />
               </div>
               <div className="flex shrink-0 flex-col items-end gap-1">
                 <span className="font-medium tabular-nums">

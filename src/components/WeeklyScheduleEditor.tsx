@@ -5,10 +5,13 @@ import { createClient } from "@/lib/supabase/client";
 import {
   DAY_LABELS,
   DAY_ORDER,
+  dayTargetTotal,
   emptyWeekInputs,
+  formatMinutes,
   hoursToMinutes,
   minutesToHours,
   scheduleToInputs,
+  weekTargetTotal,
 } from "@/lib/rules";
 import type { DayScheduleInput, WeeklySchedule } from "@/types/database";
 
@@ -20,14 +23,16 @@ type Props = {
 
 type RowState = {
   day_of_week: number;
-  studyHours: number;
+  studyHomeHours: number;
+  studyNHours: number;
   jukuHours: number;
 };
 
 function toRows(inputs: DayScheduleInput[]): RowState[] {
   return inputs.map((d) => ({
     day_of_week: d.day_of_week,
-    studyHours: minutesToHours(d.study_minutes),
+    studyHomeHours: minutesToHours(d.study_home_minutes),
+    studyNHours: minutesToHours(d.study_n_minutes),
     jukuHours: minutesToHours(d.juku_minutes),
   }));
 }
@@ -41,13 +46,25 @@ export function WeeklyScheduleEditor({ familyId, schedule, onUpdated }: Props) {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const inputs = rows.map((r) => ({
+    day_of_week: r.day_of_week,
+    study_home_minutes: hoursToMinutes(r.studyHomeHours),
+    study_n_minutes: hoursToMinutes(r.studyNHours),
+    juku_minutes: hoursToMinutes(r.jukuHours),
+  }));
+  const weekTotal = weekTargetTotal(inputs);
+
   useEffect(() => {
     setRows(
       toRows(schedule.length > 0 ? scheduleToInputs(schedule) : emptyWeekInputs()),
     );
   }, [schedule]);
 
-  function updateRow(dow: number, field: "studyHours" | "jukuHours", value: number) {
+  function updateRow(
+    dow: number,
+    field: keyof Omit<RowState, "day_of_week">,
+    value: number,
+  ) {
     setRows((prev) =>
       prev.map((r) =>
         r.day_of_week === dow ? { ...r, [field]: Math.max(0, value) } : r,
@@ -60,11 +77,13 @@ export function WeeklyScheduleEditor({ familyId, schedule, onUpdated }: Props) {
     setError(null);
     setMessage(null);
 
-    const payload = rows.map((r) => ({
+    const payload = inputs.map((d) => ({
       family_id: familyId,
-      day_of_week: r.day_of_week,
-      study_minutes: hoursToMinutes(r.studyHours),
-      juku_minutes: hoursToMinutes(r.jukuHours),
+      day_of_week: d.day_of_week,
+      study_home_minutes: d.study_home_minutes,
+      study_n_minutes: d.study_n_minutes,
+      juku_minutes: d.juku_minutes,
+      study_minutes: d.study_home_minutes,
     }));
 
     const { error: deleteErr } = await supabase
@@ -91,52 +110,63 @@ export function WeeklyScheduleEditor({ familyId, schedule, onUpdated }: Props) {
 
   return (
     <section className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
-      <h3 className="mb-1 text-sm font-bold">曜日ごとの目標時間</h3>
-      <p className="mb-4 text-xs text-zinc-500">
-        月〜日それぞれに、自習と塾の目標時間（時間）を設定します。0時間の項目は対象外です。
+      <div className="mb-3 flex items-baseline justify-between gap-2">
+        <h3 className="text-sm font-bold">曜日ごとの目標時間</h3>
+        <p className="text-sm font-semibold text-violet-700 dark:text-violet-300">
+          週合計 {formatMinutes(weekTotal)}
+        </p>
+      </div>
+      <p className="mb-3 text-xs text-zinc-500">
+        月水金=塾2h、火木=自習(自宅)2h が初期値です。土日・N高は0のまま変更できます。
       </p>
 
-      <div className="space-y-2">
+      <div className="mb-1 hidden grid-cols-[1.5rem_1fr_1fr_1fr_3rem] gap-1 px-1 text-[10px] text-zinc-400 sm:grid">
+        <span />
+        <span>自習(自宅)</span>
+        <span>自習(N高)</span>
+        <span>塾</span>
+        <span className="text-right">合計</span>
+      </div>
+
+      <div className="space-y-1.5">
         {DAY_ORDER.map((dow) => {
           const row = rows.find((r) => r.day_of_week === dow)!;
+          const dayInput = inputs.find((d) => d.day_of_week === dow)!;
+          const dayTotal = dayTargetTotal(dayInput);
           return (
             <div
               key={dow}
-              className="grid grid-cols-[2rem_1fr_1fr] items-center gap-2 rounded-xl bg-zinc-50 px-3 py-2 dark:bg-zinc-800/50"
+              className="grid grid-cols-[1.5rem_1fr_1fr_1fr_3rem] items-center gap-1 rounded-xl bg-zinc-50 px-2 py-1.5 dark:bg-zinc-800/50"
             >
               <span className="text-sm font-bold text-violet-700 dark:text-violet-300">
                 {DAY_LABELS[dow]}
               </span>
-              <label className="flex items-center gap-1 text-xs">
-                <span className="w-8 shrink-0 text-zinc-500">自習</span>
-                <input
-                  type="number"
-                  min={0}
-                  max={12}
-                  step={0.5}
-                  value={row.studyHours}
-                  onChange={(e) =>
-                    updateRow(dow, "studyHours", parseFloat(e.target.value) || 0)
-                  }
-                  className="w-full rounded-lg border border-zinc-200 bg-white px-2 py-1.5 text-sm dark:border-zinc-600 dark:bg-zinc-900"
-                />
-                <span className="text-zinc-400">h</span>
-              </label>
-              <label className="flex items-center gap-1 text-xs">
-                <span className="w-8 shrink-0 text-zinc-500">塾</span>
-                <input
-                  type="number"
-                  min={0}
-                  max={12}
-                  step={0.5}
-                  value={row.jukuHours}
-                  onChange={(e) =>
-                    updateRow(dow, "jukuHours", parseFloat(e.target.value) || 0)
-                  }
-                  className="w-full rounded-lg border border-zinc-200 bg-white px-2 py-1.5 text-sm dark:border-zinc-600 dark:bg-zinc-900"
-                />
-                <span className="text-zinc-400">h</span>
-              </label>
+              {(
+                [
+                  ["studyHomeHours", "自宅"] as const,
+                  ["studyNHours", "N高"] as const,
+                  ["jukuHours", "塾"] as const,
+                ]
+              ).map(([field]) => (
+                <label key={field} className="flex items-center gap-0.5 text-xs">
+                  <input
+                    type="number"
+                    min={0}
+                    max={12}
+                    step={0.5}
+                    value={row[field]}
+                    onChange={(e) =>
+                      updateRow(dow, field, parseFloat(e.target.value) || 0)
+                    }
+                    className="w-full min-w-0 rounded-lg border border-zinc-200 bg-white px-1.5 py-1 text-sm dark:border-zinc-600 dark:bg-zinc-900"
+                    aria-label={`${DAY_LABELS[dow]} ${field}`}
+                  />
+                  <span className="shrink-0 text-zinc-400">h</span>
+                </label>
+              ))}
+              <span className="text-right text-xs font-medium tabular-nums text-zinc-600 dark:text-zinc-300">
+                {dayTotal > 0 ? formatMinutes(dayTotal) : "—"}
+              </span>
             </div>
           );
         })}

@@ -50,9 +50,11 @@ export function TodayProgress({
   const {
     status,
     label,
-    studyMinutes,
+    studyHomeMinutes,
+    studyNMinutes,
     jukuMinutes,
-    studyTargetMinutes,
+    studyHomeTargetMinutes,
+    studyNTargetMinutes,
     jukuTargetMinutes,
     totalMinutes,
     targetMinutes,
@@ -98,7 +100,8 @@ export function TodayProgress({
         <p className="mt-2 text-2xl font-bold tabular-nums">{formatMinutes(totalMinutes)}</p>
       )}
 
-      <ProgressRow label="自習" actual={studyMinutes} target={studyTargetMinutes} />
+      <ProgressRow label="自習(自宅)" actual={studyHomeMinutes} target={studyHomeTargetMinutes} />
+      <ProgressRow label="自習(N高)" actual={studyNMinutes} target={studyNTargetMinutes} />
       <ProgressRow label="塾" actual={jukuMinutes} target={jukuTargetMinutes} />
 
       {todaySessions.length > 0 && (

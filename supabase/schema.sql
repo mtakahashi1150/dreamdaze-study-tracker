@@ -29,7 +29,7 @@ create table if not exists public.study_sessions (
   ended_at timestamptz,
   transcript_start text,
   transcript_end text,
-  kind text not null default 'study' check (kind in ('study', 'juku')),
+  kind text not null default 'study_home' check (kind in ('juku', 'study_home', 'study_n')),
   manual_edited boolean not null default false,
   created_at timestamptz not null default now(),
   constraint ended_after_start check (ended_at is null or ended_at >= started_at)
@@ -40,8 +40,10 @@ create table if not exists public.weekly_schedule (
   id uuid primary key default gen_random_uuid(),
   family_id uuid not null references public.families (id) on delete cascade,
   day_of_week int not null check (day_of_week between 0 and 6),
-  study_minutes int not null default 0 check (study_minutes >= 0 and study_minutes <= 1440),
+  study_home_minutes int not null default 0 check (study_home_minutes >= 0 and study_home_minutes <= 1440),
+  study_n_minutes int not null default 0 check (study_n_minutes >= 0 and study_n_minutes <= 1440),
   juku_minutes int not null default 0 check (juku_minutes >= 0 and juku_minutes <= 1440),
+  study_minutes int not null default 0 check (study_minutes >= 0 and study_minutes <= 1440),
   created_at timestamptz not null default now(),
   unique (family_id, day_of_week)
 );

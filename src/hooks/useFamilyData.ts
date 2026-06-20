@@ -54,7 +54,7 @@ export function useFamilyData(childMemberId?: string) {
     }
 
     const since = new Date();
-    since.setMonth(since.getMonth() - 2);
+    since.setMonth(since.getMonth() - 4);
 
     const { data: sess } = await supabase
       .from("study_sessions")

@@ -6,6 +6,8 @@ type Props = {
   label: string;
   onResult: (text: string) => void;
   disabled?: boolean;
+  confirmLabel?: string;
+  hint?: string;
 };
 
 type SpeechResultEvent = {
@@ -35,7 +37,13 @@ function getSpeechRecognition(): (new () => SpeechRecognitionLike) | null {
   return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
 }
 
-export function VoiceInput({ label, onResult, disabled }: Props) {
+export function VoiceInput({
+  label,
+  onResult,
+  disabled,
+  confirmLabel = "この内容で確定",
+  hint = "音声認識後も内容を直せます。問題なければ確定ボタンを押してください。",
+}: Props) {
   const [listening, setListening] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -141,11 +149,9 @@ export function VoiceInput({ label, onResult, disabled }: Props) {
         disabled={disabled || !transcript.trim()}
         className="w-full rounded-xl bg-emerald-600 py-3 text-sm font-semibold text-white disabled:opacity-40"
       >
-        この内容で確定
+        {confirmLabel}
       </button>
-      <p className="text-xs text-zinc-500">
-        音声認識後も内容を直せます。問題なければ「この内容で確定」を押してください。
-      </p>
+      <p className="text-xs text-zinc-500">{hint}</p>
     </div>
   );
 }

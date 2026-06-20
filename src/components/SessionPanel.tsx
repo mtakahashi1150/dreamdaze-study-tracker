@@ -3,8 +3,9 @@
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
 import { VoiceInput } from "@/components/VoiceInput";
+import { SESSION_KIND_OPTIONS } from "@/components/SessionBadges";
 import { createClient } from "@/lib/supabase/client";
-import { detectKind } from "@/lib/rules";
+import { detectKind, KIND_LABELS, normalizeKind } from "@/lib/rules";
 import type { SessionKind, StudySession } from "@/types/database";
 
 type Props = {
@@ -13,7 +14,7 @@ type Props = {
   onUpdated: () => void;
 };
 
-type Step = "idle" | "voice_start" | "running" | "voice_end";
+type Step = "idle" | "voice_start" | "running";
 
 export function SessionPanel({ profileId, familyId, onUpdated }: Props) {
   const supabase = createClient();
@@ -22,7 +23,8 @@ export function SessionPanel({ profileId, familyId, onUpdated }: Props) {
   const [elapsed, setElapsed] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [sessionKind, setSessionKind] = useState<SessionKind>("study");
+  const [sessionKind, setSessionKind] = useState<SessionKind>("study_home");
+  const [showEndForm, setShowEndForm] = useState(false);
 
   useEffect(() => {
     void loadActive();
@@ -53,13 +55,15 @@ export function SessionPanel({ profileId, familyId, onUpdated }: Props) {
     if (data) {
       setActive(data as StudySession);
       setStep("running");
+      setShowEndForm(false);
     }
   }
 
   async function handleStartVoice(text: string) {
     setLoading(true);
     setError(null);
-    const kind = detectKind(text) === "juku" ? "juku" : sessionKind;
+    const detected = detectKind(text);
+    const kind = detected !== "study_home" ? detected : sessionKind;
     const { data, error: err } = await supabase
       .from("study_sessions")
       .insert({
@@ -80,6 +84,7 @@ export function SessionPanel({ profileId, familyId, onUpdated }: Props) {
     }
     setActive(data as StudySession);
     setStep("running");
+    setShowEndForm(false);
     onUpdated();
   }
 
@@ -90,14 +95,15 @@ export function SessionPanel({ profileId, familyId, onUpdated }: Props) {
     }
     setLoading(true);
     setError(null);
+    const detected = detectKind(text);
     const kind =
-      active.kind === "juku" || detectKind(text) === "juku" ? "juku" : "study";
+      detected !== "study_home" ? detected : normalizeKind(active.kind);
 
     const { data, error: err } = await supabase
       .from("study_sessions")
       .update({
         ended_at: new Date().toISOString(),
-        transcript_end: text,
+        transcript_end: text.trim() || null,
         kind,
       })
       .eq("id", active.id)
@@ -115,6 +121,7 @@ export function SessionPanel({ profileId, familyId, onUpdated }: Props) {
     }
     setActive(null);
     setStep("idle");
+    setShowEndForm(false);
     setElapsed(0);
     onUpdated();
   }
@@ -142,29 +149,21 @@ export function SessionPanel({ profileId, familyId, onUpdated }: Props) {
   if (step === "voice_start") {
     return (
       <section className="space-y-4">
-        <div className="grid grid-cols-2 gap-2">
-          <button
-            type="button"
-            onClick={() => setSessionKind("study")}
-            className={`rounded-xl py-2 text-sm font-medium ${
-              sessionKind === "study"
-                ? "bg-violet-600 text-white"
-                : "border border-zinc-300 dark:border-zinc-600"
-            }`}
-          >
-            自習
-          </button>
-          <button
-            type="button"
-            onClick={() => setSessionKind("juku")}
-            className={`rounded-xl py-2 text-sm font-medium ${
-              sessionKind === "juku"
-                ? "bg-violet-600 text-white"
-                : "border border-zinc-300 dark:border-zinc-600"
-            }`}
-          >
-            塾
-          </button>
+        <div className="grid grid-cols-3 gap-2">
+          {SESSION_KIND_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => setSessionKind(opt.value)}
+              className={`rounded-xl py-2 text-xs font-medium ${
+                sessionKind === opt.value
+                  ? "bg-violet-600 text-white"
+                  : "border border-zinc-300 dark:border-zinc-600"
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
         </div>
         <VoiceInput
           label="いまから何をする？（口頭で話してください）"
@@ -183,40 +182,19 @@ export function SessionPanel({ profileId, familyId, onUpdated }: Props) {
     );
   }
 
-  if (step === "voice_end") {
-    return (
-      <section className="space-y-4">
-        <VoiceInput
-          label="何をやった？（口頭で話してください）"
-          onResult={(t) => void handleEndVoice(t)}
-          disabled={loading}
-        />
-        {loading && (
-          <p className="text-center text-sm text-violet-600">終了を保存しています…</p>
-        )}
-        <button
-          type="button"
-          onClick={() => setStep("running")}
-          className="w-full py-2 text-sm text-zinc-500"
-        >
-          戻る
-        </button>
-        {error && <p className="text-sm text-rose-600">{error}</p>}
-      </section>
-    );
-  }
-
   return (
     <section className="space-y-4 rounded-2xl border-2 border-violet-300 bg-violet-50 p-5 dark:border-violet-700 dark:bg-violet-950/30">
       <p className="text-sm font-medium text-violet-700 dark:text-violet-300">
-        {active?.kind === "juku" ? "塾 · 学習中" : "自習 · 学習中"}
+        {active
+          ? `${KIND_LABELS[normalizeKind(active.kind)]} · 学習中`
+          : "学習中"}
       </p>
       <p className="text-4xl font-bold tabular-nums tracking-tight">
         {elapsedLabel}
       </p>
       {active?.transcript_start && (
         <p className="text-sm text-zinc-600 dark:text-zinc-300">
-          開始メモ：{active.transcript_start}
+          開始：{active.transcript_start}
         </p>
       )}
       {active?.started_at && (
@@ -225,13 +203,42 @@ export function SessionPanel({ profileId, familyId, onUpdated }: Props) {
         </p>
       )}
 
-      <button
-        type="button"
-        onClick={() => setStep("voice_end")}
-        className="w-full rounded-2xl bg-rose-500 py-5 text-lg font-bold text-white hover:bg-rose-600"
-      >
-        終了する
-      </button>
+      {!showEndForm ? (
+        <button
+          type="button"
+          onClick={() => {
+            setError(null);
+            setShowEndForm(true);
+          }}
+          className="w-full rounded-2xl bg-rose-500 py-5 text-lg font-bold text-white hover:bg-rose-600"
+        >
+          終了する
+        </button>
+      ) : (
+        <div className="space-y-3">
+          <VoiceInput
+            label="何をやった？（ここで終了メモを入れて保存します）"
+            confirmLabel="終了して保存"
+            hint="終了時刻とメモは、このボタンを押したときにまとめて保存されます。"
+            onResult={(t) => void handleEndVoice(t)}
+            disabled={loading}
+          />
+          {loading && (
+            <p className="text-center text-sm text-violet-600">終了を保存しています…</p>
+          )}
+          <button
+            type="button"
+            disabled={loading}
+            onClick={() => {
+              setShowEndForm(false);
+              setError(null);
+            }}
+            className="w-full py-2 text-sm text-zinc-500"
+          >
+            キャンセル（学習を続ける）
+          </button>
+        </div>
+      )}
 
       {error && <p className="text-sm text-rose-600">{error}</p>}
     </section>
