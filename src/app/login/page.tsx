@@ -46,7 +46,7 @@ export default function LoginPage() {
     <main className="mx-auto flex min-h-full max-w-lg flex-col justify-center gap-6 p-6">
       <div>
         <h1 className="text-2xl font-bold">ログイン</h1>
-        <p className="mt-1 text-sm text-zinc-500">DREAMDAZE 学習トラッカー</p>
+        <p className="mt-1 text-sm text-zinc-500">学習トラッカー</p>
       </div>
 
       {!configured && (

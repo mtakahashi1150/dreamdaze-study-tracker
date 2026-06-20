@@ -7,8 +7,9 @@ import { DaySessionList, MonthCalendar } from "@/components/MonthCalendar";
 import { useFamilyData } from "@/hooks/useFamilyData";
 
 export default function CalendarPage() {
-  const { sessions, weekPlans, loading, childProfile, isChild } = useFamilyData();
+  const { sessions, weeklySchedule, loading, childProfile, isChild } = useFamilyData();
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
+  const childName = childProfile?.display_name ?? "お子さん";
 
   if (loading) {
     return (
@@ -23,13 +24,13 @@ export default function CalendarPage() {
       <header>
         <h1 className="text-xl font-bold">カレンダー</h1>
         <p className="text-sm text-zinc-500">
-          {isChild ? "自分の達成状況" : `${childProfile?.display_name ?? "寛翔"}さんの達成状況`}
+          {isChild ? "自分の達成状況" : `${childName}さんの達成状況`}
         </p>
       </header>
 
       <MonthCalendar
         sessions={sessions}
-        weekPlans={weekPlans}
+        weeklySchedule={weeklySchedule}
         onDayClick={setSelectedDay}
       />
 

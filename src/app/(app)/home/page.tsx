@@ -3,18 +3,26 @@
 import { useRouter } from "next/navigation";
 import { SessionPanel } from "@/components/SessionPanel";
 import { TodayProgress } from "@/components/TodayProgress";
-import { WeekPlanPicker } from "@/components/WeekPlanPicker";
+import { WeeklyScheduleEditor } from "@/components/WeeklyScheduleEditor";
 import { useFamilyData } from "@/hooks/useFamilyData";
 import { evaluateDay, formatDateJa, sessionsForDay } from "@/lib/rules";
 import { createClient } from "@/lib/supabase/client";
 
 export default function HomePage() {
   const router = useRouter();
-  const { profile, childProfile, sessions, weekPlans, loading, refresh, isChild } =
-    useFamilyData();
+  const {
+    profile,
+    childProfile,
+    sessions,
+    weeklySchedule,
+    loading,
+    refresh,
+    isChild,
+  } = useFamilyData();
   const today = new Date();
-  const evaluation = evaluateDay(today, sessions, weekPlans);
+  const evaluation = evaluateDay(today, sessions, weeklySchedule);
   const todaySessions = sessionsForDay(sessions, today);
+  const childName = childProfile?.display_name ?? "お子さん";
 
   async function signOut() {
     const supabase = createClient();
@@ -36,7 +44,7 @@ export default function HomePage() {
         <div>
           <p className="text-sm text-zinc-500">{formatDateJa(today)}</p>
           <h1 className="text-xl font-bold">
-            {isChild ? "今日も頑張ろう" : `${childProfile?.display_name ?? "寛翔"}さんの記録`}
+            {isChild ? "今日の学習" : `${childName}さんの記録`}
           </h1>
         </div>
         <button
@@ -55,22 +63,24 @@ export default function HomePage() {
       />
 
       {isChild && profile && (
-        <>
-          <SessionPanel
-            profileId={profile.id}
-            familyId={profile.family_id}
-            onUpdated={refresh}
-          />
-          <WeekPlanPicker
-            familyId={profile.family_id}
-            onUpdated={refresh}
-          />
-        </>
+        <SessionPanel
+          profileId={profile.id}
+          familyId={profile.family_id}
+          onUpdated={refresh}
+        />
+      )}
+
+      {profile && (
+        <WeeklyScheduleEditor
+          familyId={profile.family_id}
+          schedule={weeklySchedule}
+          onUpdated={refresh}
+        />
       )}
 
       {!isChild && (
         <section className="rounded-2xl border border-dashed border-zinc-300 p-4 text-sm text-zinc-500 dark:border-zinc-600">
-          親モード：寛翔さんの記録を閲覧しています。記録の追加・編集は寛翔さんのアカウントから行います。
+          親モード：記録の閲覧と、曜日ごとの目標時間の設定ができます。学習の開始・終了はお子さんのアカウントから行います。
         </section>
       )}
     </main>

@@ -1,11 +1,10 @@
 {
-  "name": "DREAMDAZE 学習トラッカー",
-  "short_name": "DD学習",
-  "description": "親子で学習時間を報告・確認",
+  "name": "学習トラッカー",
+  "short_name": "学習",
+  "description": "親子で学習時間を記録・管理",
   "start_url": "/home",
   "display": "standalone",
   "background_color": "#fafafa",
   "theme_color": "#6b4cf6",
-  "orientation": "portrait",
   "lang": "ja"
 }

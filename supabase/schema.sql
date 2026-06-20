@@ -1,4 +1,4 @@
--- DREAMDAZE 学習トラッカー — Supabase スキーマ
+-- 学習トラッカー — Supabase スキーマ
 -- SQL Editor に貼り付けて実行してください。
 
 create extension if not exists "pgcrypto";
@@ -35,7 +35,18 @@ create table if not exists public.study_sessions (
   constraint ended_after_start check (ended_at is null or ended_at >= started_at)
 );
 
--- 土日 9h/4h の週割り当て（未設定時はアプリ側デフォルト 土4・日9）
+-- 曜日ごとの目標時間（自習・塾）
+create table if not exists public.weekly_schedule (
+  id uuid primary key default gen_random_uuid(),
+  family_id uuid not null references public.families (id) on delete cascade,
+  day_of_week int not null check (day_of_week between 0 and 6),
+  study_minutes int not null default 0 check (study_minutes >= 0 and study_minutes <= 1440),
+  juku_minutes int not null default 0 check (juku_minutes >= 0 and juku_minutes <= 1440),
+  created_at timestamptz not null default now(),
+  unique (family_id, day_of_week)
+);
+
+-- 旧：土日 9h/4h の週割り当て（互換用・新アプリでは未使用）
 create table if not exists public.week_plans (
   id uuid primary key default gen_random_uuid(),
   family_id uuid not null references public.families (id) on delete cascade,
@@ -54,6 +65,7 @@ alter table public.families enable row level security;
 alter table public.profiles enable row level security;
 alter table public.study_sessions enable row level security;
 alter table public.week_plans enable row level security;
+alter table public.weekly_schedule enable row level security;
 
 create or replace function public.current_family_id()
 returns uuid
@@ -151,3 +163,21 @@ create policy "week_plans_update_child"
     family_id = public.current_family_id()
     and public.current_role() = 'child'
   );
+
+-- weekly_schedule: 家族全員が閲覧・編集
+create policy "weekly_schedule_select_family"
+  on public.weekly_schedule for select
+  using (family_id = public.current_family_id());
+
+create policy "weekly_schedule_insert_family"
+  on public.weekly_schedule for insert
+  to authenticated
+  with check (family_id = public.current_family_id());
+
+create policy "weekly_schedule_update_family"
+  on public.weekly_schedule for update
+  using (family_id = public.current_family_id());
+
+create policy "weekly_schedule_delete_family"
+  on public.weekly_schedule for delete
+  using (family_id = public.current_family_id());

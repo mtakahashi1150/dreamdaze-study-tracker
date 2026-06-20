@@ -5,7 +5,7 @@ import { format } from "date-fns";
 import { VoiceInput } from "@/components/VoiceInput";
 import { createClient } from "@/lib/supabase/client";
 import { detectKind } from "@/lib/rules";
-import type { StudySession } from "@/types/database";
+import type { SessionKind, StudySession } from "@/types/database";
 
 type Props = {
   profileId: string;
@@ -22,6 +22,7 @@ export function SessionPanel({ profileId, familyId, onUpdated }: Props) {
   const [elapsed, setElapsed] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [sessionKind, setSessionKind] = useState<SessionKind>("study");
 
   useEffect(() => {
     void loadActive();
@@ -58,7 +59,7 @@ export function SessionPanel({ profileId, familyId, onUpdated }: Props) {
   async function handleStartVoice(text: string) {
     setLoading(true);
     setError(null);
-    const kind = detectKind(text);
+    const kind = detectKind(text) === "juku" ? "juku" : sessionKind;
     const { data, error: err } = await supabase
       .from("study_sessions")
       .insert({
@@ -141,6 +142,30 @@ export function SessionPanel({ profileId, familyId, onUpdated }: Props) {
   if (step === "voice_start") {
     return (
       <section className="space-y-4">
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => setSessionKind("study")}
+            className={`rounded-xl py-2 text-sm font-medium ${
+              sessionKind === "study"
+                ? "bg-violet-600 text-white"
+                : "border border-zinc-300 dark:border-zinc-600"
+            }`}
+          >
+            自習
+          </button>
+          <button
+            type="button"
+            onClick={() => setSessionKind("juku")}
+            className={`rounded-xl py-2 text-sm font-medium ${
+              sessionKind === "juku"
+                ? "bg-violet-600 text-white"
+                : "border border-zinc-300 dark:border-zinc-600"
+            }`}
+          >
+            塾
+          </button>
+        </div>
         <VoiceInput
           label="いまから何をする？（口頭で話してください）"
           onResult={(t) => void handleStartVoice(t)}
@@ -184,7 +209,7 @@ export function SessionPanel({ profileId, familyId, onUpdated }: Props) {
   return (
     <section className="space-y-4 rounded-2xl border-2 border-violet-300 bg-violet-50 p-5 dark:border-violet-700 dark:bg-violet-950/30">
       <p className="text-sm font-medium text-violet-700 dark:text-violet-300">
-        学習中
+        {active?.kind === "juku" ? "塾 · 学習中" : "自習 · 学習中"}
       </p>
       <p className="text-4xl font-bold tabular-nums tracking-tight">
         {elapsedLabel}

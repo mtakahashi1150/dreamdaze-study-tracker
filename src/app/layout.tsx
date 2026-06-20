@@ -8,12 +8,12 @@ const geist = Geist({
 });
 
 export const metadata: Metadata = {
-  title: "DREAMDAZE 学習トラッカー",
-  description: "親子で学習時間をチェックイン・チェックアウト報告",
+  title: "学習トラッカー",
+  description: "親子で学習時間を記録・管理",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
-    title: "DD学習",
+    title: "学習トラッカー",
     statusBarStyle: "default",
   },
 };

@@ -20,6 +20,7 @@ export default function ManualPage() {
   );
   const [transcriptStart, setTranscriptStart] = useState("");
   const [transcriptEnd, setTranscriptEnd] = useState("");
+  const [kind, setKind] = useState<"study" | "juku">("study");
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -29,7 +30,7 @@ export default function ManualPage() {
       <main className="p-6 pt-8">
         <h1 className="text-xl font-bold">手入力</h1>
         <p className="mt-4 text-sm text-zinc-500">
-          手入力での記録追加は寛翔さんのアカウントから行ってください。
+          手入力での記録追加は、お子さんのアカウントから行ってください。
         </p>
       </main>
     );
@@ -42,10 +43,10 @@ export default function ManualPage() {
     setError(null);
     setMessage(null);
 
-    const kind =
+    const resolvedKind =
       detectKind(transcriptStart) === "juku" || detectKind(transcriptEnd) === "juku"
         ? "juku"
-        : "study";
+        : kind;
 
     const { error: err } = await supabase.from("study_sessions").insert({
       member_id: profile.id,
@@ -54,7 +55,7 @@ export default function ManualPage() {
       ended_at: parseDateTimeLocal(endedAt),
       transcript_start: transcriptStart || null,
       transcript_end: transcriptEnd || null,
-      kind,
+      kind: resolvedKind,
       manual_edited: true,
     });
 
@@ -77,6 +78,31 @@ export default function ManualPage() {
       </header>
 
       <form onSubmit={handleSave} className="space-y-4">
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => setKind("study")}
+            className={`rounded-xl py-2 text-sm font-medium ${
+              kind === "study"
+                ? "bg-violet-600 text-white"
+                : "border border-zinc-300 dark:border-zinc-600"
+            }`}
+          >
+            自習
+          </button>
+          <button
+            type="button"
+            onClick={() => setKind("juku")}
+            className={`rounded-xl py-2 text-sm font-medium ${
+              kind === "juku"
+                ? "bg-violet-600 text-white"
+                : "border border-zinc-300 dark:border-zinc-600"
+            }`}
+          >
+            塾
+          </button>
+        </div>
+
         <label className="block">
           <span className="text-sm font-medium">開始日時</span>
           <input

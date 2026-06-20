@@ -29,21 +29,32 @@ export type StudySession = {
   created_at: string;
 };
 
-export type WeekPlan = {
+/** date-fns getDay: 0=日, 1=月, …, 6=土 */
+export type WeeklySchedule = {
   id: string;
   family_id: string;
-  week_start: string;
-  sat_hours: 4 | 9;
-  sun_hours: 4 | 9;
+  day_of_week: number;
+  study_minutes: number;
+  juku_minutes: number;
   created_at: string;
 };
 
-export type DayStatus = "none" | "partial" | "met" | "juku_met" | "future";
+export type DayStatus = "none" | "partial" | "met" | "future";
 
 export type DayEvaluation = {
   dateKey: string;
   status: DayStatus;
+  studyMinutes: number;
+  jukuMinutes: number;
+  studyTargetMinutes: number;
+  jukuTargetMinutes: number;
   totalMinutes: number;
-  targetMinutes: number | null;
+  targetMinutes: number;
   label: string;
+};
+
+export type DayScheduleInput = {
+  day_of_week: number;
+  study_minutes: number;
+  juku_minutes: number;
 };

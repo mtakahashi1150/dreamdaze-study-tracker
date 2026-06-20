@@ -6,31 +6,28 @@ import {
   startOfWeek,
 } from "date-fns";
 import { ja } from "date-fns/locale";
-import type { DayEvaluation, DayStatus, StudySession, WeekPlan } from "@/types/database";
+import type {
+  DayEvaluation,
+  DayScheduleInput,
+  DayStatus,
+  StudySession,
+  WeeklySchedule,
+} from "@/types/database";
 
-const WEEKDAY_TARGET_MIN = 120; // 火・木 2時間
-const JUKU_TARGET_MIN = 120; // 月・水・金 塾 2時間
-const JUKU_DAYS = new Set([1, 3, 5]); // 月=1, 水=3, 金=5 (date-fns: 0=日)
+/** 表示順: 月〜日 */
+export const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0] as const;
+export const DAY_LABELS: Record<number, string> = {
+  0: "日",
+  1: "月",
+  2: "火",
+  3: "水",
+  4: "木",
+  5: "金",
+  6: "土",
+};
 
 export function dateKey(date: Date): string {
   return format(date, "yyyy-MM-dd");
-}
-
-export function getSaturdayWeekStart(date: Date): string {
-  const day = getDay(date);
-  const saturday = addDays(date, day === 6 ? 0 : day === 0 ? -1 : 6 - day);
-  return dateKey(saturday);
-}
-
-export function getWeekPlanForDate(
-  date: Date,
-  plans: WeekPlan[],
-): { sat_hours: 4 | 9; sun_hours: 4 | 9 } {
-  const weekStart = getSaturdayWeekStart(date);
-  const found = plans.find((p) => p.week_start === weekStart);
-  return found
-    ? { sat_hours: found.sat_hours, sun_hours: found.sun_hours }
-    : { sat_hours: 4, sun_hours: 9 };
 }
 
 export function sessionMinutes(session: StudySession): number {
@@ -48,14 +45,13 @@ export function sessionsForDay(
   return sessions.filter((s) => dateKey(parseISO(s.started_at)) === key);
 }
 
-export function totalMinutesForDay(
+export function minutesForKind(
   sessions: StudySession[],
-  day: Date,
+  kind: "study" | "juku",
 ): number {
-  return sessionsForDay(sessions, day).reduce(
-    (sum, s) => sum + sessionMinutes(s),
-    0,
-  );
+  return sessions
+    .filter((s) => s.kind === kind)
+    .reduce((sum, s) => sum + sessionMinutes(s), 0);
 }
 
 export function detectKind(transcript: string): "study" | "juku" {
@@ -63,39 +59,28 @@ export function detectKind(transcript: string): "study" | "juku" {
   return "study";
 }
 
-export function dayTargetMinutes(date: Date, weekPlan: { sat_hours: 4 | 9; sun_hours: 4 | 9 }): {
-  minutes: number | null;
-  label: string;
-  isJukuDay: boolean;
-} {
-  const dow = getDay(date);
-  if (JUKU_DAYS.has(dow)) {
-    return { minutes: JUKU_TARGET_MIN, label: "塾2時間", isJukuDay: true };
-  }
-  if (dow === 2 || dow === 4) {
-    return { minutes: WEEKDAY_TARGET_MIN, label: "2時間", isJukuDay: false };
-  }
-  if (dow === 6) {
-    return {
-      minutes: weekPlan.sat_hours * 60,
-      label: `${weekPlan.sat_hours}時間`,
-      isJukuDay: false,
-    };
-  }
-  if (dow === 0) {
-    return {
-      minutes: weekPlan.sun_hours * 60,
-      label: `${weekPlan.sun_hours}時間`,
-      isJukuDay: false,
-    };
-  }
-  return { minutes: null, label: "—", isJukuDay: false };
+export function getDaySchedule(
+  dow: number,
+  schedule: WeeklySchedule[],
+): { study_minutes: number; juku_minutes: number } {
+  const row = schedule.find((s) => s.day_of_week === dow);
+  return {
+    study_minutes: row?.study_minutes ?? 0,
+    juku_minutes: row?.juku_minutes ?? 0,
+  };
+}
+
+export function scheduleLabel(study: number, juku: number): string {
+  const parts: string[] = [];
+  if (study > 0) parts.push(`自習${formatMinutes(study)}`);
+  if (juku > 0) parts.push(`塾${formatMinutes(juku)}`);
+  return parts.length > 0 ? parts.join("・") : "休み";
 }
 
 export function evaluateDay(
   date: Date,
   sessions: StudySession[],
-  weekPlans: WeekPlan[],
+  schedule: WeeklySchedule[],
 ): DayEvaluation {
   const key = dateKey(date);
   const todayKey = dateKey(new Date());
@@ -103,53 +88,56 @@ export function evaluateDay(
     return {
       dateKey: key,
       status: "future",
+      studyMinutes: 0,
+      jukuMinutes: 0,
+      studyTargetMinutes: 0,
+      jukuTargetMinutes: 0,
       totalMinutes: 0,
-      targetMinutes: null,
+      targetMinutes: 0,
       label: "—",
     };
   }
 
   const daySessions = sessionsForDay(sessions, date);
-  const totalMinutes = daySessions.reduce(
-    (sum, s) => sum + sessionMinutes(s),
-    0,
-  );
-  const weekPlan = getWeekPlanForDate(date, weekPlans);
-  const target = dayTargetMinutes(date, weekPlan);
+  const studyMinutes = minutesForKind(daySessions, "study");
+  const jukuMinutes = minutesForKind(daySessions, "juku");
+  const totalMinutes = studyMinutes + jukuMinutes;
 
-  if (target.isJukuDay) {
-    let status: DayStatus = "none";
-    if (totalMinutes >= (target.minutes ?? JUKU_TARGET_MIN)) status = "juku_met";
-    else if (totalMinutes > 0) status = "partial";
+  const { study_minutes, juku_minutes } = getDaySchedule(getDay(date), schedule);
+  const targetMinutes = study_minutes + juku_minutes;
+  const label = scheduleLabel(study_minutes, juku_minutes);
+
+  if (study_minutes === 0 && juku_minutes === 0) {
     return {
       dateKey: key,
-      status,
+      status: totalMinutes > 0 ? "partial" : "none",
+      studyMinutes,
+      jukuMinutes,
+      studyTargetMinutes: 0,
+      jukuTargetMinutes: 0,
       totalMinutes,
-      targetMinutes: target.minutes,
-      label: target.label,
+      targetMinutes: 0,
+      label,
     };
   }
 
-  if (target.minutes === null) {
-    return {
-      dateKey: key,
-      status: "none",
-      totalMinutes,
-      targetMinutes: null,
-      label: target.label,
-    };
-  }
+  const studyMet = study_minutes === 0 || studyMinutes >= study_minutes;
+  const jukuMet = juku_minutes === 0 || jukuMinutes >= juku_minutes;
 
   let status: DayStatus = "none";
-  if (totalMinutes >= target.minutes) status = "met";
+  if (studyMet && jukuMet) status = "met";
   else if (totalMinutes > 0) status = "partial";
 
   return {
     dateKey: key,
     status,
+    studyMinutes,
+    jukuMinutes,
+    studyTargetMinutes: study_minutes,
+    jukuTargetMinutes: juku_minutes,
     totalMinutes,
-    targetMinutes: target.minutes,
-    label: target.label,
+    targetMinutes,
+    label,
   };
 }
 
@@ -159,6 +147,14 @@ export function formatMinutes(minutes: number): string {
   if (h === 0) return `${m}分`;
   if (m === 0) return `${h}時間`;
   return `${h}時間${m}分`;
+}
+
+export function hoursToMinutes(hours: number): number {
+  return Math.round(hours * 60);
+}
+
+export function minutesToHours(minutes: number): number {
+  return Math.round((minutes / 60) * 2) / 2;
 }
 
 export function formatDateJa(date: Date): string {
@@ -189,8 +185,6 @@ export function statusColor(status: DayStatus): string {
   switch (status) {
     case "met":
       return "bg-emerald-500";
-    case "juku_met":
-      return "bg-violet-500";
     case "partial":
       return "bg-amber-400";
     case "future":
@@ -198,4 +192,23 @@ export function statusColor(status: DayStatus): string {
     default:
       return "bg-zinc-300 dark:bg-zinc-600";
   }
+}
+
+export function scheduleToInputs(schedule: WeeklySchedule[]): DayScheduleInput[] {
+  return DAY_ORDER.map((dow) => {
+    const row = schedule.find((s) => s.day_of_week === dow);
+    return {
+      day_of_week: dow,
+      study_minutes: row?.study_minutes ?? 0,
+      juku_minutes: row?.juku_minutes ?? 0,
+    };
+  });
+}
+
+export function emptyWeekInputs(): DayScheduleInput[] {
+  return DAY_ORDER.map((dow) => ({
+    day_of_week: dow,
+    study_minutes: 0,
+    juku_minutes: 0,
+  }));
 }

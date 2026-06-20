@@ -2,13 +2,13 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import type { Profile, StudySession, WeekPlan } from "@/types/database";
+import type { Profile, StudySession, WeeklySchedule } from "@/types/database";
 
 export function useFamilyData(childMemberId?: string) {
   const supabase = createClient();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [sessions, setSessions] = useState<StudySession[]>([]);
-  const [weekPlans, setWeekPlans] = useState<WeekPlan[]>([]);
+  const [weeklySchedule, setWeeklySchedule] = useState<WeeklySchedule[]>([]);
   const [childProfile, setChildProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -67,12 +67,13 @@ export function useFamilyData(childMemberId?: string) {
 
     setSessions((sess as StudySession[]) ?? []);
 
-    const { data: plans } = await supabase
-      .from("week_plans")
+    const { data: sched } = await supabase
+      .from("weekly_schedule")
       .select("*")
-      .eq("family_id", me.family_id);
+      .eq("family_id", me.family_id)
+      .order("day_of_week");
 
-    setWeekPlans((plans as WeekPlan[]) ?? []);
+    setWeeklySchedule((sched as WeeklySchedule[]) ?? []);
     setLoading(false);
   }, [childMemberId]);
 
@@ -84,7 +85,7 @@ export function useFamilyData(childMemberId?: string) {
     profile,
     childProfile,
     sessions,
-    weekPlans,
+    weeklySchedule,
     loading,
     refresh,
     isChild: profile?.role === "child",

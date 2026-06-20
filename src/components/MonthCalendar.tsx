@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { format, parseISO } from "date-fns";
 import { ja } from "date-fns/locale";
-import type { DayEvaluation, StudySession } from "@/types/database";
+import type { DayEvaluation, StudySession, WeeklySchedule } from "@/types/database";
 import {
   evaluateDay,
   formatMinutes,
@@ -14,11 +14,11 @@ import {
 
 type Props = {
   sessions: StudySession[];
-  weekPlans: import("@/types/database").WeekPlan[];
+  weeklySchedule: WeeklySchedule[];
   onDayClick?: (dateKey: string) => void;
 };
 
-export function MonthCalendar({ sessions, weekPlans, onDayClick }: Props) {
+export function MonthCalendar({ sessions, weeklySchedule, onDayClick }: Props) {
   const [cursor, setCursor] = useState(new Date());
   const year = cursor.getFullYear();
   const month = cursor.getMonth();
@@ -28,15 +28,13 @@ export function MonthCalendar({ sessions, weekPlans, onDayClick }: Props) {
   const evaluations = useMemo(() => {
     const map = new Map<string, DayEvaluation>();
     for (const d of days) {
-      const ev = evaluateDay(d, sessions, weekPlans);
+      const ev = evaluateDay(d, sessions, weeklySchedule);
       map.set(ev.dateKey, ev);
     }
     return map;
-  }, [days, sessions, weekPlans]);
+  }, [days, sessions, weeklySchedule]);
 
-  const metCount = [...evaluations.values()].filter(
-    (e) => e.status === "met" || e.status === "juku_met",
-  ).length;
+  const metCount = [...evaluations.values()].filter((e) => e.status === "met").length;
 
   return (
     <section className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
@@ -98,10 +96,6 @@ export function MonthCalendar({ sessions, weekPlans, onDayClick }: Props) {
           達成
         </span>
         <span className="flex items-center gap-1">
-          <span className="inline-block h-2 w-2 rounded-full bg-violet-500" />
-          塾
-        </span>
-        <span className="flex items-center gap-1">
           <span className="inline-block h-2 w-2 rounded-full bg-amber-400" />
           途中
         </span>
@@ -141,21 +135,17 @@ export function DaySessionList({
             {s.ended_at && ` — ${format(parseISO(s.ended_at), "HH:mm")}`}
             {" · "}
             {formatMinutes(sessionMinutes(s))}
-            {s.kind === "juku" && (
-              <span className="ml-2 rounded bg-violet-100 px-1.5 text-violet-700">
-                塾
-              </span>
+            {s.kind === "juku" ? (
+              <span className="ml-2 rounded bg-violet-100 px-1.5 text-violet-700">塾</span>
+            ) : (
+              <span className="ml-2 rounded bg-zinc-100 px-1.5 text-zinc-600">自習</span>
             )}
           </p>
           {s.transcript_start && (
-            <p className="mt-1 text-zinc-600 dark:text-zinc-300">
-              開始：{s.transcript_start}
-            </p>
+            <p className="mt-1 text-zinc-600 dark:text-zinc-300">開始：{s.transcript_start}</p>
           )}
           {s.transcript_end && (
-            <p className="text-zinc-600 dark:text-zinc-300">
-              終了：{s.transcript_end}
-            </p>
+            <p className="text-zinc-600 dark:text-zinc-300">終了：{s.transcript_end}</p>
           )}
         </li>
       ))}
