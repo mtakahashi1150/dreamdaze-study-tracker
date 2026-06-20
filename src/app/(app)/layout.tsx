@@ -1,14 +1,12 @@
 import { redirect } from "next/navigation";
+import { BottomNav } from "@/components/BottomNav";
 import { createClient } from "@/lib/supabase/server";
 
-export default async function HomePage() {
-  if (
-    !process.env.NEXT_PUBLIC_SUPABASE_URL ||
-    process.env.NEXT_PUBLIC_SUPABASE_URL.includes("YOUR_PROJECT")
-  ) {
-    redirect("/setup");
-  }
-
+export default async function AppLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const supabase = await createClient();
   const {
     data: { user },
@@ -18,10 +16,16 @@ export default async function HomePage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("id")
+    .select("*")
     .eq("id", user.id)
     .maybeSingle();
 
   if (!profile) redirect("/register");
-  redirect("/home");
+
+  return (
+    <div className="mx-auto min-h-full max-w-lg pb-24">
+      {children}
+      <BottomNav />
+    </div>
+  );
 }
