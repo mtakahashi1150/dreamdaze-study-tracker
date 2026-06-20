@@ -1,14 +1,16 @@
 "use client";
 
-import type { DayEvaluation } from "@/types/database";
-import { formatMinutes } from "@/lib/rules";
+import { format } from "date-fns";
+import type { DayEvaluation, StudySession } from "@/types/database";
+import { formatMinutes, sessionMinutes } from "@/lib/rules";
 
 type Props = {
   evaluation: DayEvaluation;
   isChild: boolean;
+  todaySessions?: StudySession[];
 };
 
-export function TodayProgress({ evaluation, isChild }: Props) {
+export function TodayProgress({ evaluation, isChild, todaySessions = [] }: Props) {
   const { status, totalMinutes, targetMinutes, label } = evaluation;
 
   const pct =
@@ -71,9 +73,32 @@ export function TodayProgress({ evaluation, isChild }: Props) {
           </div>
         </>
       ) : (
-        <p className="mt-2 text-2xl font-bold tabular-nums">
-          {status === "juku_met" ? "塾に行きました" : formatMinutes(totalMinutes)}
-        </p>
+        <p className="mt-2 text-2xl font-bold tabular-nums">{formatMinutes(totalMinutes)}</p>
+      )}
+
+      {todaySessions.length > 0 && (
+        <div className="mt-4 border-t border-zinc-100 pt-3 dark:border-zinc-800">
+          <p className="mb-2 text-xs font-semibold text-zinc-500">
+            本日の記録（{todaySessions.length}回・合算）
+          </p>
+          <ul className="space-y-1.5">
+            {todaySessions.map((s) => (
+              <li
+                key={s.id}
+                className="flex items-start justify-between gap-2 text-sm text-zinc-600 dark:text-zinc-300"
+              >
+                <span className="min-w-0 truncate">
+                  {format(new Date(s.started_at), "HH:mm")}–
+                  {s.ended_at ? format(new Date(s.ended_at), "HH:mm") : "—"}
+                  {s.transcript_start ? ` · ${s.transcript_start}` : ""}
+                </span>
+                <span className="shrink-0 font-medium tabular-nums">
+                  {formatMinutes(sessionMinutes(s))}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
 
       {!isChild && (

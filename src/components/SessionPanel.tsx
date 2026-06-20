@@ -83,28 +83,38 @@ export function SessionPanel({ profileId, familyId, onUpdated }: Props) {
   }
 
   async function handleEndVoice(text: string) {
-    if (!active) return;
+    if (!active) {
+      setError("終了対象のセッションが見つかりません。ページを再読み込みしてください。");
+      return;
+    }
     setLoading(true);
     setError(null);
     const kind =
       active.kind === "juku" || detectKind(text) === "juku" ? "juku" : "study";
 
-    const { error: err } = await supabase
+    const { data, error: err } = await supabase
       .from("study_sessions")
       .update({
         ended_at: new Date().toISOString(),
         transcript_end: text,
         kind,
       })
-      .eq("id", active.id);
+      .eq("id", active.id)
+      .select()
+      .maybeSingle();
 
     setLoading(false);
     if (err) {
       setError(err.message);
       return;
     }
+    if (!data) {
+      setError("終了の保存に失敗しました。ログインし直すか、もう一度お試しください。");
+      return;
+    }
     setActive(null);
     setStep("idle");
+    setElapsed(0);
     onUpdated();
   }
 
@@ -156,6 +166,9 @@ export function SessionPanel({ profileId, familyId, onUpdated }: Props) {
           onResult={(t) => void handleEndVoice(t)}
           disabled={loading}
         />
+        {loading && (
+          <p className="text-center text-sm text-violet-600">終了を保存しています…</p>
+        )}
         <button
           type="button"
           onClick={() => setStep("running")}

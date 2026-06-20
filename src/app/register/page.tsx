@@ -111,10 +111,11 @@ export default function RegisterPage() {
     router.refresh();
     } catch (err) {
       setLoading(false);
+      const msg = err instanceof Error ? err.message : "";
       setError(
-        err instanceof Error
-          ? err.message
-          : "通信エラー。Supabase の URL 設定と Vercel の再デプロイを確認してください。",
+        msg === "Failed to fetch"
+          ? "Supabase に接続できません。Vercel の Environment Variables に本物の NEXT_PUBLIC_SUPABASE_URL と NEXT_PUBLIC_SUPABASE_ANON_KEY を入れて Redeploy してください（placeholder のままでは動きません）。"
+          : msg || "通信エラー。Supabase の設定と Vercel の再デプロイを確認してください。",
       );
     }
   }

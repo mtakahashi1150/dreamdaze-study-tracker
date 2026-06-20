@@ -5,7 +5,7 @@ import { SessionPanel } from "@/components/SessionPanel";
 import { TodayProgress } from "@/components/TodayProgress";
 import { WeekPlanPicker } from "@/components/WeekPlanPicker";
 import { useFamilyData } from "@/hooks/useFamilyData";
-import { evaluateDay, formatDateJa } from "@/lib/rules";
+import { evaluateDay, formatDateJa, sessionsForDay } from "@/lib/rules";
 import { createClient } from "@/lib/supabase/client";
 
 export default function HomePage() {
@@ -14,6 +14,7 @@ export default function HomePage() {
     useFamilyData();
   const today = new Date();
   const evaluation = evaluateDay(today, sessions, weekPlans);
+  const todaySessions = sessionsForDay(sessions, today);
 
   async function signOut() {
     const supabase = createClient();
@@ -47,7 +48,11 @@ export default function HomePage() {
         </button>
       </header>
 
-      <TodayProgress evaluation={evaluation} isChild={isChild} />
+      <TodayProgress
+        evaluation={evaluation}
+        isChild={isChild}
+        todaySessions={todaySessions}
+      />
 
       {isChild && profile && (
         <>

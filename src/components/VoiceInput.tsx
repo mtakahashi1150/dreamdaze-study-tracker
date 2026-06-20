@@ -85,8 +85,7 @@ export function VoiceInput({ label, onResult, disabled }: Props) {
 
     rec.onend = () => {
       setListening(false);
-      const finalText = transcriptRef.current.trim();
-      if (finalText) onResult(finalText);
+      // 確定ボタンを押すまで送信しない（自動送信だと編集前に失敗しやすい）
     };
 
     rec.start();
@@ -94,7 +93,13 @@ export function VoiceInput({ label, onResult, disabled }: Props) {
   }, [onResult]);
 
   const confirmManual = () => {
-    if (transcript.trim()) onResult(transcript.trim());
+    const text = transcript.trim();
+    if (!text) {
+      setError("内容が空です。話すか、テキスト欄に入力してください。");
+      return;
+    }
+    setError(null);
+    onResult(text);
   };
 
   return (
@@ -133,11 +138,14 @@ export function VoiceInput({ label, onResult, disabled }: Props) {
       <button
         type="button"
         onClick={confirmManual}
-        disabled={!transcript.trim()}
-        className="w-full rounded-xl border border-zinc-300 py-2 text-sm font-medium disabled:opacity-40 dark:border-zinc-600"
+        disabled={disabled || !transcript.trim()}
+        className="w-full rounded-xl bg-emerald-600 py-3 text-sm font-semibold text-white disabled:opacity-40"
       >
         この内容で確定
       </button>
+      <p className="text-xs text-zinc-500">
+        音声認識後も内容を直せます。問題なければ「この内容で確定」を押してください。
+      </p>
     </div>
   );
 }

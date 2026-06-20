@@ -9,6 +9,7 @@ import { ja } from "date-fns/locale";
 import type { DayEvaluation, DayStatus, StudySession, WeekPlan } from "@/types/database";
 
 const WEEKDAY_TARGET_MIN = 120; // 火・木 2時間
+const JUKU_TARGET_MIN = 120; // 月・水・金 塾 2時間
 const JUKU_DAYS = new Set([1, 3, 5]); // 月=1, 水=3, 金=5 (date-fns: 0=日)
 
 export function dateKey(date: Date): string {
@@ -69,7 +70,7 @@ export function dayTargetMinutes(date: Date, weekPlan: { sat_hours: 4 | 9; sun_h
 } {
   const dow = getDay(date);
   if (JUKU_DAYS.has(dow)) {
-    return { minutes: null, label: "塾", isJukuDay: true };
+    return { minutes: JUKU_TARGET_MIN, label: "塾2時間", isJukuDay: true };
   }
   if (dow === 2 || dow === 4) {
     return { minutes: WEEKDAY_TARGET_MIN, label: "2時間", isJukuDay: false };
@@ -117,19 +118,15 @@ export function evaluateDay(
   const target = dayTargetMinutes(date, weekPlan);
 
   if (target.isJukuDay) {
-    const hasJuku =
-      daySessions.some((s) => s.kind === "juku") ||
-      daySessions.some(
-        (s) =>
-          detectKind(s.transcript_start ?? "") === "juku" ||
-          detectKind(s.transcript_end ?? "") === "juku",
-      );
+    let status: DayStatus = "none";
+    if (totalMinutes >= (target.minutes ?? JUKU_TARGET_MIN)) status = "juku_met";
+    else if (totalMinutes > 0) status = "partial";
     return {
       dateKey: key,
-      status: hasJuku ? "juku_met" : totalMinutes > 0 ? "partial" : "none",
+      status,
       totalMinutes,
-      targetMinutes: null,
-      label: "塾",
+      targetMinutes: target.minutes,
+      label: target.label,
     };
   }
 
