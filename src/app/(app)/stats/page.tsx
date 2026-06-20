@@ -28,11 +28,7 @@ export default function StatsPage() {
         </p>
       </header>
 
-      <StatsPanel
-        thisWeek={summary.thisWeek}
-        rolling7={summary.rolling7}
-        thisMonth={summary.thisMonth}
-      />
+      <StatsPanel {...summary} />
     </main>
   );
 }

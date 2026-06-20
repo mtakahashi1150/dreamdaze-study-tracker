@@ -1,171 +1,422 @@
 "use client";
 
-import type { PeriodStats } from "@/types/database";
-import { formatMinutes, formatMinutesDecimal } from "@/lib/rules";
+import type {
+  DailyBreakdown,
+  KindBreakdown,
+  StatsSummary,
+  WeekTrendPoint,
+} from "@/types/database";
+import {
+  formatDelta,
+  formatHoursShort,
+  formatMinutes,
+  formatMinutesDecimal,
+} from "@/lib/rules";
 
-type Props = {
-  thisWeek: PeriodStats;
-  rolling7: PeriodStats;
-  thisMonth: PeriodStats;
-};
+type Props = StatsSummary;
 
-const CATEGORIES = [
-  { key: "study_home" as const, label: "自習(自宅)", color: "bg-zinc-500" },
-  { key: "study_n" as const, label: "自習(N高)", color: "bg-sky-500" },
-  { key: "juku" as const, label: "塾", color: "bg-violet-500" },
+const SEGMENTS = [
+  { key: "study_home" as const, label: "自習(自宅)", fill: "#71717a" },
+  { key: "study_n" as const, label: "自習(N高)", fill: "#0ea5e9" },
+  { key: "juku" as const, label: "塾", fill: "#8b5cf6" },
 ];
 
-function StatCard({ stat }: { stat: PeriodStats }) {
+function Legend() {
   return (
-    <div className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
-      <h3 className="font-bold">{stat.label}</h3>
-      <p className="mt-0.5 text-xs text-zinc-500">
-        {stat.periodStart} 〜 {stat.periodEnd}（{stat.daysInPeriod}日）
-      </p>
-      <p className="mt-3 text-3xl font-bold tabular-nums">
-        {formatMinutes(stat.breakdown.total)}
-      </p>
-      <p className="text-sm text-zinc-500">
-        1日平均 {formatMinutes(stat.averagePerDay)}
-      </p>
-      <ul className="mt-3 space-y-1 text-sm text-zinc-600 dark:text-zinc-300">
-        <li>自習(自宅) {formatMinutes(stat.breakdown.study_home)}</li>
-        <li>自習(N高) {formatMinutes(stat.breakdown.study_n)}</li>
-        <li>塾 {formatMinutes(stat.breakdown.juku)}</li>
-      </ul>
+    <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-zinc-600 dark:text-zinc-300">
+      {SEGMENTS.map((s) => (
+        <span key={s.key} className="inline-flex items-center gap-1.5">
+          <span
+            className="inline-block h-2.5 w-2.5 rounded-sm"
+            style={{ backgroundColor: s.fill }}
+          />
+          {s.label}
+        </span>
+      ))}
     </div>
   );
 }
 
-function ComparisonChart({
-  thisWeek,
-  rolling7,
-  thisMonth,
+function DeltaBadge({
+  delta,
+  compareLabel,
 }: {
-  thisWeek: PeriodStats;
-  rolling7: PeriodStats;
-  thisMonth: PeriodStats;
+  delta: number;
+  compareLabel: string;
 }) {
-  const periods = [
-    { stat: thisWeek, short: "今週" },
-    { stat: rolling7, short: "直近7日" },
-    { stat: thisMonth, short: "今月" },
-  ];
-
-  const maxTotal = Math.max(
-    ...periods.map((p) => p.stat.breakdown.total),
-    60,
+  const up = delta > 0;
+  const down = delta < 0;
+  return (
+    <div
+      className={`text-sm font-medium ${
+        up
+          ? "text-emerald-600 dark:text-emerald-400"
+          : down
+            ? "text-amber-600 dark:text-amber-400"
+            : "text-zinc-500"
+      }`}
+    >
+      {compareLabel}{" "}
+      <span className="tabular-nums">
+        {formatDelta(delta)}
+        {up && " ↑"}
+        {down && " ↓"}
+      </span>
+    </div>
   );
+}
+
+function HeroSummary({ summary }: { summary: StatsSummary }) {
+  const weekDelta =
+    summary.thisWeek.breakdown.total -
+    summary.lastWeekSamePeriod.breakdown.total;
+  const weekAvgDelta =
+    summary.thisWeek.averagePerDay - summary.lastWeekSamePeriod.averagePerDay;
+  const rollingDelta =
+    summary.rolling7.breakdown.total - summary.prevRolling7.breakdown.total;
 
   return (
-    <section className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
-      <h3 className="mb-1 font-bold">期間比較（合計時間）</h3>
-      <p className="mb-4 text-xs text-zinc-500">
-        今週と直近7日を同じグラフで比べると、「先週との差」ではなく「この1週間でどれだけやったか」が見えます。
+    <section className="rounded-2xl bg-gradient-to-br from-violet-600 to-violet-800 p-5 text-white shadow-lg">
+      <p className="text-sm font-medium text-violet-200">今週の学習（月〜今日）</p>
+      <p className="mt-1 text-4xl font-bold tabular-nums tracking-tight">
+        {formatMinutesDecimal(summary.thisWeek.breakdown.total)}
       </p>
-
-      <div className="space-y-4">
-        {periods.map(({ stat, short }) => {
-          const pct = Math.round((stat.breakdown.total / maxTotal) * 100);
-          return (
-            <div key={short}>
-              <div className="mb-1 flex justify-between text-sm">
-                <span className="font-medium">{short}</span>
-                <span className="tabular-nums text-zinc-600 dark:text-zinc-300">
-                  {formatMinutesDecimal(stat.breakdown.total)}
-                  <span className="ml-2 text-xs text-zinc-400">
-                    平均 {formatMinutes(stat.averagePerDay)}/日
-                  </span>
-                </span>
-              </div>
-              <div className="h-4 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
-                <div
-                  className={`h-full rounded-full transition-all ${
-                    short === "直近7日" ? "bg-violet-500" : "bg-emerald-500"
-                  }`}
-                  style={{ width: `${Math.max(pct, stat.breakdown.total > 0 ? 4 : 0)}%` }}
-                />
-              </div>
-            </div>
-          );
-        })}
+      <p className="mt-1 text-sm text-violet-100">
+        1日平均 {formatMinutes(summary.thisWeek.averagePerDay)}
+      </p>
+      <div className="mt-4 space-y-1 rounded-xl bg-white/10 px-3 py-2.5">
+        <DeltaBadge delta={weekDelta} compareLabel="先週の同じ期間より" />
+        <DeltaBadge delta={weekAvgDelta} compareLabel="先週の1日平均より" />
+        <p className="text-xs text-violet-200/80">
+          直近7日 {formatMinutes(summary.rolling7.breakdown.total)}
+          <span className="ml-2">
+            （前の7日比 {formatDelta(rollingDelta)}）
+          </span>
+        </p>
       </div>
     </section>
   );
 }
 
-function CategoryChart({
-  thisWeek,
-  rolling7,
+function StackedBar({
+  breakdown,
+  maxTotal,
+  barHeight,
+  barWidth,
+  x,
+  highlight,
 }: {
-  thisWeek: PeriodStats;
-  rolling7: PeriodStats;
+  breakdown: KindBreakdown;
+  maxTotal: number;
+  barHeight: number;
+  barWidth: number;
+  x: number;
+  highlight?: boolean;
 }) {
-  const maxVal = Math.max(
-    ...CATEGORIES.flatMap((c) => [
-      thisWeek.breakdown[c.key],
-      rolling7.breakdown[c.key],
-    ]),
-    30,
+  let y = barHeight;
+  const total = breakdown.total;
+
+  return (
+    <g>
+      {total === 0 ? (
+        <rect
+          x={x}
+          y={barHeight - 4}
+          width={barWidth}
+          height={4}
+          fill="currentColor"
+          className="text-zinc-200 dark:text-zinc-700"
+          rx={2}
+        />
+      ) : (
+        SEGMENTS.map((seg) => {
+          const val = breakdown[seg.key];
+          if (val <= 0) return null;
+          const h = Math.max(2, (val / maxTotal) * barHeight);
+          y -= h;
+          return (
+            <rect
+              key={seg.key}
+              x={x}
+              y={y}
+              width={barWidth}
+              height={h}
+              fill={seg.fill}
+              rx={1}
+            />
+          );
+        })
+      )}
+      {total > 0 && (
+        <text
+          x={x + barWidth / 2}
+          y={y - 4}
+          textAnchor="middle"
+          className="fill-zinc-600 text-[9px] font-semibold dark:fill-zinc-300"
+        >
+          {formatHoursShort(total)}h
+        </text>
+      )}
+      {highlight && total > 0 && (
+        <rect
+          x={x - 2}
+          y={0}
+          width={barWidth + 4}
+          height={barHeight}
+          fill="none"
+          stroke="#7c3aed"
+          strokeWidth={2}
+          rx={4}
+        />
+      )}
+    </g>
   );
+}
+
+function DailyStackedChart({ days }: { days: DailyBreakdown[] }) {
+  const maxTotal = Math.max(...days.map((d) => d.breakdown.total), 90);
+  const barWidth = 28;
+  const gap = 10;
+  const barHeight = 140;
+  const chartW = days.length * (barWidth + gap) - gap + 8;
 
   return (
     <section className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
-      <h3 className="mb-1 font-bold">内訳比較（今週 vs 直近7日）</h3>
-      <p className="mb-4 text-xs text-zinc-500">
-        種類ごとに並べると、塾・自宅・N高のバランスの変化が分かります。
+      <h3 className="font-bold">1日ごとの学習（直近7日）</h3>
+      <p className="mb-3 mt-0.5 text-xs text-zinc-500">
+        棒の高さ＝その日の合計。色の積み上げで種類の内訳が分かります。
+      </p>
+      <Legend />
+      <div className="mt-3 overflow-x-auto">
+        <svg
+          viewBox={`0 0 ${chartW} ${barHeight + 44}`}
+          className="mx-auto block w-full max-w-md"
+          role="img"
+          aria-label="直近7日間の学習時間の積み上げ棒グラフ"
+        >
+          {days.map((day, i) => {
+            const x = i * (barWidth + gap) + 4;
+            return (
+              <g key={day.dateKey}>
+                <StackedBar
+                  breakdown={day.breakdown}
+                  maxTotal={maxTotal}
+                  barHeight={barHeight}
+                  barWidth={barWidth}
+                  x={x}
+                  highlight={day.isToday}
+                />
+                <text
+                  x={x + barWidth / 2}
+                  y={barHeight + 14}
+                  textAnchor="middle"
+                  className={`text-[11px] ${
+                    day.isToday
+                      ? "fill-violet-600 font-bold dark:fill-violet-400"
+                      : "fill-zinc-600 dark:fill-zinc-400"
+                  }`}
+                >
+                  {day.dayLabel}
+                </text>
+                <text
+                  x={x + barWidth / 2}
+                  y={barHeight + 26}
+                  textAnchor="middle"
+                  className="fill-zinc-400 text-[9px]"
+                >
+                  {day.shortDate}
+                </text>
+              </g>
+            );
+          })}
+        </svg>
+      </div>
+    </section>
+  );
+}
+
+function WeekTrendChart({ weeks }: { weeks: WeekTrendPoint[] }) {
+  const maxTotal = Math.max(...weeks.map((w) => w.breakdown.total), 120);
+  const barWidth = 48;
+  const gap = 16;
+  const barHeight = 120;
+  const chartW = weeks.length * (barWidth + gap) - gap + 8;
+
+  return (
+    <section className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
+      <h3 className="font-bold">週ごとの推移（4週間）</h3>
+      <p className="mb-3 mt-0.5 text-xs text-zinc-500">
+        先週・先々週と比べて、今週は増えているか減っているかが分かります。
+      </p>
+      <div className="overflow-x-auto">
+        <svg
+          viewBox={`0 0 ${chartW} ${barHeight + 56}`}
+          className="mx-auto block w-full max-w-sm"
+          role="img"
+          aria-label="4週間の学習時間推移"
+        >
+          {weeks.map((week, i) => {
+            const x = i * (barWidth + gap) + 4;
+            const total = week.breakdown.total;
+            return (
+              <g key={week.label}>
+                <StackedBar
+                  breakdown={week.breakdown}
+                  maxTotal={maxTotal}
+                  barHeight={barHeight}
+                  barWidth={barWidth}
+                  x={x}
+                  highlight={week.isCurrent}
+                />
+                <text
+                  x={x + barWidth / 2}
+                  y={barHeight + 16}
+                  textAnchor="middle"
+                  className={`text-xs ${
+                    week.isCurrent
+                      ? "fill-violet-600 font-bold dark:fill-violet-400"
+                      : "fill-zinc-600 dark:fill-zinc-400"
+                  }`}
+                >
+                  {week.label}
+                </text>
+                <text
+                  x={x + barWidth / 2}
+                  y={barHeight + 30}
+                  textAnchor="middle"
+                  className="fill-zinc-500 text-[10px]"
+                >
+                  計{formatHoursShort(total)}h
+                </text>
+                <text
+                  x={x + barWidth / 2}
+                  y={barHeight + 42}
+                  textAnchor="middle"
+                  className="fill-zinc-400 text-[9px]"
+                >
+                  平均{formatHoursShort(week.averagePerDay)}h/日
+                </text>
+              </g>
+            );
+          })}
+        </svg>
+      </div>
+    </section>
+  );
+}
+
+function MonthCompare({
+  thisMonth,
+  lastMonth,
+}: {
+  thisMonth: StatsSummary["thisMonth"];
+  lastMonth: StatsSummary["lastMonthSamePeriod"];
+}) {
+  const delta = thisMonth.breakdown.total - lastMonth.breakdown.total;
+  const avgDelta = thisMonth.averagePerDay - lastMonth.averagePerDay;
+  const maxTotal = Math.max(
+    thisMonth.breakdown.total,
+    lastMonth.breakdown.total,
+    60,
+  );
+  const barHeight = 100;
+  const pairs = [
+    { label: "先月", stat: lastMonth, highlight: false },
+    { label: "今月", stat: thisMonth, highlight: true },
+  ];
+
+  return (
+    <section className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
+      <h3 className="font-bold">今月 vs 先月（同じ日数で比較）</h3>
+      <p className="mb-3 mt-0.5 text-xs text-zinc-500">
+        例：今日が20日なら、先月の1〜20日と今月の1〜20日を比べます。
       </p>
 
-      <div className="space-y-3">
-        {CATEGORIES.map((cat) => (
-          <div key={cat.key}>
-            <p className="mb-1 text-xs font-medium text-zinc-600 dark:text-zinc-300">
-              {cat.label}
+      <div className="mb-4 grid grid-cols-2 gap-3">
+        {pairs.map(({ label, stat, highlight }) => (
+          <div
+            key={label}
+            className={`rounded-xl p-3 ${
+              highlight
+                ? "bg-violet-50 dark:bg-violet-950/40"
+                : "bg-zinc-50 dark:bg-zinc-800/50"
+            }`}
+          >
+            <p
+              className={`text-xs font-medium ${
+                highlight ? "text-violet-600 dark:text-violet-400" : "text-zinc-500"
+              }`}
+            >
+              {label}
             </p>
-            <div className="grid grid-cols-2 gap-2">
-              {[
-                { stat: thisWeek, label: "今週" },
-                { stat: rolling7, label: "7日" },
-              ].map(({ stat, label }) => {
-                const val = stat.breakdown[cat.key];
-                const pct = Math.round((val / maxVal) * 100);
-                return (
-                  <div key={label}>
-                    <div className="mb-0.5 flex justify-between text-[10px] text-zinc-400">
-                      <span>{label}</span>
-                      <span>{formatMinutes(val)}</span>
-                    </div>
-                    <div className="h-3 overflow-hidden rounded bg-zinc-100 dark:bg-zinc-800">
-                      <div
-                        className={`h-full rounded ${cat.color}`}
-                        style={{ width: `${Math.max(pct, val > 0 ? 6 : 0)}%` }}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+            <p className="mt-1 text-2xl font-bold tabular-nums">
+              {formatMinutesDecimal(stat.breakdown.total)}
+            </p>
+            <p className="text-xs text-zinc-500">
+              1日平均 {formatMinutes(stat.averagePerDay)}
+            </p>
           </div>
         ))}
       </div>
+
+      <DeltaBadge delta={delta} compareLabel="合計は先月より" />
+      <div className="mt-1">
+        <DeltaBadge delta={avgDelta} compareLabel="1日平均は先月より" />
+      </div>
+
+      <div className="mt-4 overflow-x-auto">
+        <svg
+          viewBox="0 0 140 130"
+          className="mx-auto block w-full max-w-[200px]"
+          role="img"
+          aria-label="今月と先月の学習時間比較"
+        >
+          {pairs.map(({ label, stat, highlight }, i) => {
+            const x = i * 72 + 8;
+            return (
+              <g key={label}>
+                <StackedBar
+                  breakdown={stat.breakdown}
+                  maxTotal={maxTotal}
+                  barHeight={barHeight}
+                  barWidth={56}
+                  x={x}
+                  highlight={highlight}
+                />
+                <text
+                  x={x + 28}
+                  y={barHeight + 16}
+                  textAnchor="middle"
+                  className={`text-xs ${
+                    highlight
+                      ? "fill-violet-600 font-bold dark:fill-violet-400"
+                      : "fill-zinc-500"
+                  }`}
+                >
+                  {label}
+                </text>
+              </g>
+            );
+          })}
+        </svg>
+      </div>
+      <div className="mt-3">
+        <Legend />
+      </div>
     </section>
   );
 }
 
-export function StatsPanel({ thisWeek, rolling7, thisMonth }: Props) {
+export function StatsPanel(summary: Props) {
   return (
     <div className="space-y-5">
-      <ComparisonChart
-        thisWeek={thisWeek}
-        rolling7={rolling7}
-        thisMonth={thisMonth}
+      <HeroSummary summary={summary} />
+      <DailyStackedChart days={summary.dailyLast7} />
+      <WeekTrendChart weeks={summary.weeklyTrend} />
+      <MonthCompare
+        thisMonth={summary.thisMonth}
+        lastMonth={summary.lastMonthSamePeriod}
       />
-      <CategoryChart thisWeek={thisWeek} rolling7={rolling7} />
-      <div className="grid gap-4 sm:grid-cols-3">
-        <StatCard stat={thisWeek} />
-        <StatCard stat={rolling7} />
-        <StatCard stat={thisMonth} />
-      </div>
     </div>
   );
 }

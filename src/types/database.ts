@@ -80,3 +80,30 @@ export type PeriodStats = {
   breakdown: KindBreakdown;
   averagePerDay: number;
 };
+
+export type DailyBreakdown = {
+  dateKey: string;
+  dayLabel: string;
+  shortDate: string;
+  isToday: boolean;
+  breakdown: KindBreakdown;
+};
+
+export type WeekTrendPoint = {
+  label: string;
+  breakdown: KindBreakdown;
+  averagePerDay: number;
+  daysInPeriod: number;
+  isCurrent: boolean;
+};
+
+export type StatsSummary = {
+  thisWeek: PeriodStats;
+  lastWeekSamePeriod: PeriodStats;
+  rolling7: PeriodStats;
+  prevRolling7: PeriodStats;
+  thisMonth: PeriodStats;
+  lastMonthSamePeriod: PeriodStats;
+  dailyLast7: DailyBreakdown[];
+  weeklyTrend: WeekTrendPoint[];
+};

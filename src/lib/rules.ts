@@ -4,20 +4,26 @@ import {
   endOfMonth,
   format,
   getDay,
+  min,
   parseISO,
   startOfMonth,
   startOfWeek,
   subDays,
+  subMonths,
+  subWeeks,
 } from "date-fns";
 import { ja } from "date-fns/locale";
 import type {
+  DailyBreakdown,
   DayEvaluation,
   DayScheduleInput,
   DayStatus,
   KindBreakdown,
   PeriodStats,
   SessionKind,
+  StatsSummary,
   StudySession,
+  WeekTrendPoint,
   WeeklySchedule,
 } from "@/types/database";
 
@@ -249,38 +255,108 @@ export function computePeriodStats(
   };
 }
 
+export function formatHoursShort(minutes: number): string {
+  if (minutes === 0) return "0";
+  const h = minutes / 60;
+  return h >= 10 ? h.toFixed(0) : h.toFixed(1);
+}
+
+export function formatDelta(minutes: number): string {
+  if (minutes === 0) return "±0";
+  const sign = minutes > 0 ? "+" : "−";
+  return `${sign}${formatMinutes(Math.abs(minutes))}`;
+}
+
+function buildDailyLast7(
+  sessions: StudySession[],
+  today: Date,
+): DailyBreakdown[] {
+  const days: DailyBreakdown[] = [];
+  for (let i = 6; i >= 0; i--) {
+    const day = subDays(today, i);
+    const breakdown = breakdownFromSessions(sessionsForDay(sessions, day));
+    days.push({
+      dateKey: dateKey(day),
+      dayLabel: format(day, "EEE", { locale: ja }),
+      shortDate: format(day, "M/d"),
+      isToday: i === 0,
+      breakdown,
+    });
+  }
+  return days;
+}
+
+function buildWeeklyTrend(
+  sessions: StudySession[],
+  today: Date,
+): WeekTrendPoint[] {
+  const points: WeekTrendPoint[] = [];
+  for (let weeksAgo = 3; weeksAgo >= 0; weeksAgo--) {
+    const weekStart = startOfWeek(subWeeks(today, weeksAgo), { weekStartsOn: 1 });
+    const weekEnd =
+      weeksAgo === 0 ? today : addDays(weekStart, 6);
+    const daysInPeriod = differenceInCalendarDays(weekEnd, weekStart) + 1;
+    const breakdown = breakdownFromSessions(
+      sessionsInRange(sessions, weekStart, weekEnd),
+    );
+    const label =
+      weeksAgo === 0 ? "今週" : weeksAgo === 1 ? "先週" : `${weeksAgo}週前`;
+    points.push({
+      label,
+      breakdown,
+      averagePerDay:
+        daysInPeriod > 0 ? Math.round(breakdown.total / daysInPeriod) : 0,
+      daysInPeriod,
+      isCurrent: weeksAgo === 0,
+    });
+  }
+  return points;
+}
+
 export function buildStatsSummary(
   sessions: StudySession[],
   today = new Date(),
-): {
-  thisWeek: PeriodStats;
-  rolling7: PeriodStats;
-  thisMonth: PeriodStats;
-} {
+): StatsSummary {
   const weekStart = startOfWeek(today, { weekStartsOn: 1 });
+  const daysIntoWeek = differenceInCalendarDays(today, weekStart);
+  const lastWeekStart = subWeeks(weekStart, 1);
+  const lastWeekSameEnd = addDays(lastWeekStart, daysIntoWeek);
+
   const monthStart = startOfMonth(today);
-  const monthEnd = endOfMonth(today);
+  const lastMonthStart = startOfMonth(subMonths(today, 1));
+  const lastMonthSameEnd = min([
+    addDays(lastMonthStart, today.getDate() - 1),
+    endOfMonth(lastMonthStart),
+  ]);
+
   const rollingStart = subDays(today, 6);
+  const prevRollingStart = subDays(today, 13);
+  const prevRollingEnd = subDays(today, 7);
 
   return {
-    thisWeek: computePeriodStats(
-      "今週（月〜今日）",
+    thisWeek: computePeriodStats("今週", sessions, weekStart, today),
+    lastWeekSamePeriod: computePeriodStats(
+      "先週の同じ期間",
       sessions,
-      weekStart,
-      today,
+      lastWeekStart,
+      lastWeekSameEnd,
     ),
-    rolling7: computePeriodStats(
-      "直近7日間",
+    rolling7: computePeriodStats("直近7日", sessions, rollingStart, today),
+    prevRolling7: computePeriodStats(
+      "その前の7日",
       sessions,
-      rollingStart,
-      today,
+      prevRollingStart,
+      prevRollingEnd,
     ),
-    thisMonth: computePeriodStats(
-      "今月",
+    thisMonth: computePeriodStats("今月", sessions, monthStart, today),
+    lastMonthSamePeriod: computePeriodStats(
+      "先月の同じ期間",
       sessions,
-      monthStart,
-      today < monthEnd ? today : monthEnd,
+      lastMonthStart,
+      lastMonthSameEnd,
     ),
+    dailyLast7: buildDailyLast7(sessions, today),
+    weeklyTrend: buildWeeklyTrend(sessions, today),
   };
 }
 
