@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { FamilyInvitePanel } from "@/components/FamilyInvitePanel";
 import { SessionPanel } from "@/components/SessionPanel";
 import { TodayProgress } from "@/components/TodayProgress";
 import { WeeklyScheduleEditor } from "@/components/WeeklyScheduleEditor";
@@ -76,6 +77,13 @@ export default function HomePage() {
           familyId={profile.family_id}
           schedule={weeklySchedule}
           onUpdated={refresh}
+        />
+      )}
+
+      {!isChild && profile && (
+        <FamilyInvitePanel
+          familyId={profile.family_id}
+          childProfile={childProfile}
         />
       )}
 

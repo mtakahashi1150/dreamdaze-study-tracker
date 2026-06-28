@@ -22,6 +22,6 @@ export default async function HomePage() {
     .eq("id", user.id)
     .maybeSingle();
 
-  if (!profile) redirect("/register");
+  if (!profile) redirect("/onboarding");
   redirect("/home");
 }

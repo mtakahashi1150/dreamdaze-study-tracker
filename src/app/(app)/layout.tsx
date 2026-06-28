@@ -20,7 +20,7 @@ export default async function AppLayout({
     .eq("id", user.id)
     .maybeSingle();
 
-  if (!profile) redirect("/register");
+  if (!profile) redirect("/onboarding");
 
   return (
     <div className="mx-auto min-h-full max-w-lg pb-24">

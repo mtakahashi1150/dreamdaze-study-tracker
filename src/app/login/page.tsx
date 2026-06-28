@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { GoogleSignInButton } from "@/components/GoogleSignInButton";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 
 export default function LoginPage() {
@@ -58,6 +59,17 @@ export default function LoginPage() {
         </div>
       )}
 
+      <GoogleSignInButton label="Googleでログイン" next="/" />
+
+      <div className="relative py-1">
+        <div className="absolute inset-0 flex items-center">
+          <div className="w-full border-t border-zinc-200 dark:border-zinc-700" />
+        </div>
+        <p className="relative mx-auto w-fit bg-zinc-50 px-3 text-xs text-zinc-400 dark:bg-zinc-950">
+          またはメール
+        </p>
+      </div>
+
       <form onSubmit={handleSubmit} className="space-y-4">
         <label className="block">
           <span className="text-sm font-medium">メール</span>
@@ -85,14 +97,14 @@ export default function LoginPage() {
           disabled={loading}
           className="w-full rounded-xl bg-violet-600 py-3 font-semibold text-white disabled:opacity-50"
         >
-          {loading ? "ログイン中…" : "ログイン"}
+          {loading ? "ログイン中…" : "メールでログイン"}
         </button>
       </form>
 
       <p className="text-center text-sm text-zinc-500">
         はじめての方は{" "}
-        <Link href="/register" className="text-violet-600 underline">
-          新規登録
+        <Link href="/onboarding" className="text-violet-600 underline">
+          アカウント設定
         </Link>
       </p>
     </main>

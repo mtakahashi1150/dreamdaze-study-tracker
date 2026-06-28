@@ -13,6 +13,7 @@ export type Family = {
   id: string;
   name: string;
   invite_code: string;
+  expected_child_name?: string | null;
   created_at: string;
 };
 

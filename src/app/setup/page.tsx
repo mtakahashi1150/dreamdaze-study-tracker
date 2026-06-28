@@ -59,15 +59,20 @@ export default function SetupPage() {
       <section className="space-y-2 text-sm">
         <h2 className="font-semibold">③ 登録の順番</h2>
         <p className="text-zinc-600 dark:text-zinc-300">
-          先に子（寛翔）で新規登録 → 表示された招待コードを親が使って登録
+          <strong>親が先</strong>に Google でログイン → 家族を作成 → 表示された招待コードを
+          お子さんと2人目以降の親（奥さんなど）に伝える
+        </p>
+        <p className="text-zinc-500">
+          Google ログインの詳細:{" "}
+          <code className="rounded bg-zinc-200 px-1 dark:bg-zinc-700">docs/GOOGLE_AUTH_SETUP.md</code>
         </p>
       </section>
 
       <Link
-        href="/register"
+        href="/onboarding"
         className="rounded-xl bg-violet-600 py-3 text-center font-semibold text-white"
       >
-        設定済みなら新規登録へ
+        設定済みならアカウント設定へ
       </Link>
     </main>
   );

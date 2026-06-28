@@ -8,6 +8,7 @@ create table if not exists public.families (
   id uuid primary key default gen_random_uuid(),
   name text not null,
   invite_code text not null unique default upper(substr(replace(gen_random_uuid()::text, '-', ''), 1, 6)),
+  expected_child_name text,
   created_at timestamptz not null default now()
 );
 
