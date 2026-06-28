@@ -15,6 +15,11 @@ type Props = {
   childProfile: Profile | null;
 };
 
+const APP_ORIGIN =
+  typeof window !== "undefined"
+    ? window.location.origin
+    : "https://project-18ha2.vercel.app";
+
 export function FamilyInvitePanel({ familyId, childProfile }: Props) {
   const supabase = createClient();
   const [family, setFamily] = useState<FamilyInfo | null>(null);
@@ -44,16 +49,34 @@ export function FamilyInvitePanel({ familyId, childProfile }: Props) {
   const childLabel =
     childProfile?.display_name ?? family.expected_child_name ?? "お子さん";
   const childJoined = Boolean(childProfile);
+  const childUrl = `${APP_ORIGIN}/onboarding?step=join_child`;
+  const parentUrl = `${APP_ORIGIN}/onboarding?step=join_parent`;
 
-  async function copyCode(label: string, code: string) {
+  async function copyText(label: string, text: string) {
     try {
-      await navigator.clipboard.writeText(code);
+      await navigator.clipboard.writeText(text);
       setCopied(label);
-      setTimeout(() => setCopied(null), 2000);
+      setTimeout(() => setCopied(null), 2500);
     } catch {
       setCopied(null);
     }
   }
+
+  const childMessage = `【学習トラッカー】${childLabel}さん用の招待です。
+
+1. 次のURLを開いて Google でログイン
+${childUrl}
+
+2. 「子：招待コードで参加」を選ぶ
+3. 招待コード: ${family.invite_code}`;
+
+  const spouseMessage = `【学習トラッカー】親アカウントの招待です。
+
+1. 次のURLを開いて Google でログイン
+${parentUrl}
+
+2. 「親：招待コードで参加」を選ぶ
+3. 招待コード: ${family.invite_code}`;
 
   return (
     <section className="rounded-2xl border border-violet-200 bg-violet-50 p-4 dark:border-violet-800 dark:bg-violet-950/40">
@@ -62,7 +85,9 @@ export function FamilyInvitePanel({ familyId, childProfile }: Props) {
       </h3>
       <p className="mt-1 text-xs text-violet-800 dark:text-violet-200">
         {family.name} · 親 {parents.length}人
-        {childJoined ? ` · ${childLabel}さん 参加済み` : ` · ${childLabel}さん 未参加`}
+        {childJoined
+          ? ` · ${childLabel}さん 参加済み`
+          : ` · ${childLabel}さん 未参加`}
       </p>
 
       <div className="mt-4 space-y-3">
@@ -71,19 +96,25 @@ export function FamilyInvitePanel({ familyId, childProfile }: Props) {
           description={
             childJoined
               ? `${childLabel}さんは参加済みです`
-              : `${childLabel}さんに Google でログイン →「子：招待コードで参加」`
+              : "招待文ごとコピーして LINE 等で送れます"
           }
           code={family.invite_code}
+          link={childUrl}
           copied={copied === "child"}
-          onCopy={() => void copyCode("child", family.invite_code)}
+          onCopyCode={() => void copyText("child-code", family.invite_code)}
+          onCopyMessage={() => void copyText("child", childMessage)}
+          copyMessageLabel="招待文をコピー"
           muted={childJoined}
         />
         <InviteBlock
           title="2人目以降の親用（奥さんなど）"
-          description="Google でログイン →「親：招待コードで参加」"
+          description="同じ招待コード・別の参加URLです"
           code={family.invite_code}
+          link={parentUrl}
           copied={copied === "parent"}
-          onCopy={() => void copyCode("parent", family.invite_code)}
+          onCopyCode={() => void copyText("parent-code", family.invite_code)}
+          onCopyMessage={() => void copyText("parent", spouseMessage)}
+          copyMessageLabel="妻用の招待文をコピー"
         />
       </div>
     </section>
@@ -94,15 +125,21 @@ function InviteBlock({
   title,
   description,
   code,
+  link,
   copied,
-  onCopy,
+  onCopyCode,
+  onCopyMessage,
+  copyMessageLabel,
   muted,
 }: {
   title: string;
   description: string;
   code: string;
+  link: string;
   copied: boolean;
-  onCopy: () => void;
+  onCopyCode: () => void;
+  onCopyMessage: () => void;
+  copyMessageLabel: string;
   muted?: boolean;
 }) {
   return (
@@ -113,6 +150,7 @@ function InviteBlock({
     >
       <p className="text-sm font-semibold">{title}</p>
       <p className="mt-0.5 text-xs text-zinc-500">{description}</p>
+      <p className="mt-2 break-all text-[10px] text-zinc-400">{link}</p>
       <div className="mt-2 flex items-center gap-2">
         <code className="flex-1 rounded-lg bg-zinc-100 px-3 py-2 text-lg font-bold tracking-widest dark:bg-zinc-800">
           {code}
@@ -120,13 +158,22 @@ function InviteBlock({
         {!muted && (
           <button
             type="button"
-            onClick={onCopy}
-            className="shrink-0 rounded-lg bg-violet-600 px-3 py-2 text-xs font-semibold text-white"
+            onClick={onCopyCode}
+            className="shrink-0 rounded-lg border border-violet-300 px-3 py-2 text-xs font-semibold text-violet-700 dark:border-violet-600 dark:text-violet-300"
           >
-            {copied ? "コピー済" : "コピー"}
+            コード
           </button>
         )}
       </div>
+      {!muted && (
+        <button
+          type="button"
+          onClick={onCopyMessage}
+          className="mt-2 w-full rounded-lg bg-violet-600 py-2.5 text-xs font-semibold text-white"
+        >
+          {copied ? "コピーしました" : copyMessageLabel}
+        </button>
+      )}
     </div>
   );
 }

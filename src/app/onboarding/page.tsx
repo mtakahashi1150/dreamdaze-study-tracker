@@ -237,7 +237,10 @@ function OnboardingContent() {
 
       {step === "auth" && (
         <section className="space-y-4">
-          <GoogleSignInButton label="Googleで始める" next="/onboarding" />
+          <GoogleSignInButton
+            label="Googleで始める"
+            next={`/onboarding${searchParams.toString() ? `?${searchParams.toString()}` : ""}`}
+          />
 
           <div className="relative py-2">
             <div className="absolute inset-0 flex items-center">
